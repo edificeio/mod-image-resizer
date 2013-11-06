@@ -1,0 +1,6 @@
+{
+	"main" : "com.wse.io.ImageResizer",
+	"worker": true,
+	"preserve-cwd" : true,
+	"address" : "wse.image.resizer",
+}
