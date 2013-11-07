@@ -5,6 +5,12 @@ dependencies {
     compile "org.imgscalr:imgscalr-lib:$imgscalrVersion"
 }
 
+javadoc {
+  options.encoding = 'UTF-8'
+  classpath = configurations.provided
+  classpath += configurations.compile
+}
+
 def configurePom(def pom) {
 	pom.project {
 		description 'Image resizer BusMod for Vert.x'
