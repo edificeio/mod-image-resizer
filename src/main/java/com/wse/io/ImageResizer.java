@@ -60,9 +60,53 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			case "resize" :
 				resize(m);
 				break;
+			case "crop" :
+				crop(m);
+				break;
 			default :
 				sendError(m, "Invalid or missing action");
 		}
+	}
+
+
+	private void crop(final Message<JsonObject> m) {
+		final Integer width = m.body().getInteger("width");
+		final Integer height = m.body().getInteger("height");
+		final Integer x = m.body().getInteger("x", 0);
+		final Integer y = m.body().getInteger("y", 0);
+		if (width == null || height == null) {
+			sendError(m, "Invalid size.");
+			return;
+		}
+		final FileAccess fSrc = getFileAccess(m, m.body().getString("src"));
+		if (fSrc == null) {
+			return;
+		}
+		final FileAccess fDest = getFileAccess(m, m.body().getString("dest"));
+		if (fDest == null) {
+			return;
+		}
+		fSrc.read(m.body().getString("src"), new Handler<ImageFile>() {
+			@Override
+			public void handle(ImageFile src) {
+				if (src == null) {
+					sendError(m, "Input file not found.");
+					return;
+				}
+				try {
+					BufferedImage srcImg = ImageIO.read(src.getInputStream());
+					if (srcImg.getWidth() < (x + width) || srcImg.getHeight() < (y + height)) {
+						sendError(m, "Source image too small for crop.");
+						return;
+					}
+					BufferedImage cropped = Scalr.crop(srcImg, x, y, width, height);
+					persistImage(src, srcImg, cropped, fDest, m);
+				} catch (IOException e) {
+					logger.error("Error processing image.", e);
+					sendError(m, "Error processing image.", e);
+				}
+			}
+		});
 	}
 
 	private void resize(final Message<JsonObject> m) {
@@ -99,23 +143,30 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 					} else {
 						resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY, width);
 					}
-					ByteArrayOutputStream out = new ByteArrayOutputStream();
-					ImageIO.write(resized, getExtension(src.getFilename()), out);
-					ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
-							src.getContentType());
-					fDest.write(m.body().getString("dest"), outImg, new Handler<Boolean>() {
-						@Override
-						public void handle(Boolean result) {
-							if (Boolean.TRUE.equals(result)) {
-								sendOK(m);
-							} else {
-								sendError(m, "Error writing file.");
-							}
-						}
-					});
+					persistImage(src, srcImg, resized, fDest, m);
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
 					sendError(m, "Error processing image.", e);
+				}
+			}
+		});
+	}
+
+	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
+			FileAccess fDest, final Message<JsonObject> m) throws IOException {
+		srcImg.flush();
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		ImageIO.write(resized, getExtension(src.getFilename()), out);
+		resized.flush();
+		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
+				src.getContentType());
+		fDest.write(m.body().getString("dest"), outImg, new Handler<Boolean>() {
+			@Override
+			public void handle(Boolean result) {
+				if (Boolean.TRUE.equals(result)) {
+					sendOK(m);
+				} else {
+					sendError(m, "Error writing file.");
 				}
 			}
 		});
