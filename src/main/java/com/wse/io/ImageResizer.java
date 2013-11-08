@@ -112,6 +112,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private void resize(final Message<JsonObject> m) {
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
+		final boolean stretch = m.body().getBoolean("stretch", false);
 		if (width == null && height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -134,7 +135,19 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				try {
 					BufferedImage srcImg = ImageIO.read(src.getInputStream());
 					BufferedImage resized;
-					if (width != null && height != null) {
+					if (width != null && height != null && !stretch) {
+						if (srcImg.getHeight()/height < srcImg.getWidth()/width) {
+							resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+									Mode.FIT_TO_HEIGHT, width, height);
+						} else {
+							resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+									Mode.FIT_TO_WIDTH, width, height);
+						}
+						resized.flush();
+						int x = (resized.getWidth() - width) / 2;
+						int y = (resized.getHeight() - height) / 2;
+						resized = Scalr.crop(resized, x, y, width, height);
+					} else if (width != null && height != null) {
 						resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 								Mode.FIT_EXACT, width, height);
 					} else if (height != null) {
