@@ -181,12 +181,12 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 						checkReply(m, count, results);
 						continue;
 					}
-					JsonObject output = (JsonObject) o;
+					final JsonObject output = (JsonObject) o;
 					final Integer width = output.getInteger("width");
 					final Integer height = output.getInteger("height");
 					final boolean stretch = output.getBoolean("stretch", false);
 					final FileAccess fDest = getFileAccess(m, output.getString("dest"));
-					if (fDest == null) {
+					if (fDest == null || (width == null && height == null)) {
 						checkReply(m, count, results);
 						continue;
 					}
@@ -197,7 +197,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 							@Override
 							public void handle(String event) {
 								if (event != null && !event.trim().isEmpty()) {
-									results.putString(width + "x" + height, event);
+									results.putString(output.getInteger("width", 0) + "x" +
+											output.getInteger("height", 0), event);
 								}
 								checkReply(m, count, results);
 							}
@@ -241,7 +242,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_HEIGHT, height);
 		} else {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY, width);
+			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+					Mode.FIT_TO_WIDTH, width);
 		}
 		return resized;
 	}
