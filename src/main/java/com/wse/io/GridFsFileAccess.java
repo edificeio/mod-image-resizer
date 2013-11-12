@@ -45,10 +45,10 @@ public class GridFsFileAccess implements FileAccess {
 	}
 
 	@Override
-	public void write(String dest, ImageFile img, Handler<Boolean> handler) {
+	public void write(String dest, ImageFile img, Handler<String> handler) {
 		String [] path = parsePath(dest);
 		if (path == null || path.length < 1) {
-			handler.handle(false);
+			handler.handle(null);
 			return;
 		}
 		GridFS fs = new GridFS(db, path[0]);
@@ -63,7 +63,7 @@ public class GridFsFileAccess implements FileAccess {
 		f.setContentType(img.getContentType());
 		f.setFilename(img.getFilename());
 		f.save();
-		handler.handle(true);
+		handler.handle(id);
 	}
 
 	@Override

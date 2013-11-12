@@ -6,7 +6,7 @@ public interface FileAccess {
 
 	void read(String src, Handler<ImageFile> handler);
 
-	void write(String dest, ImageFile img, Handler<Boolean> handler);
+	void write(String dest, ImageFile img, Handler<String> handler);
 
 	void close();
 

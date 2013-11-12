@@ -9,7 +9,7 @@ public class FileSystemFileAccess implements FileAccess{
 	}
 
 	@Override
-	public void write(String dest, ImageFile img, Handler<Boolean> handler) {
+	public void write(String dest, ImageFile img, Handler<String> handler) {
 	}
 
 	@Override

@@ -4,6 +4,7 @@ import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 import javax.imageio.ImageIO;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.imgscalr.Scalr.*;
 
@@ -62,6 +64,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				break;
 			case "crop" :
 				crop(m);
+				break;
+			case "resizeMultiple" :
+				resizeMultiple(m);
 				break;
 			default :
 				sendError(m, "Invalid or missing action");
@@ -134,28 +139,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 				try {
 					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					BufferedImage resized;
-					if (width != null && height != null && !stretch) {
-						if (srcImg.getHeight()/height < srcImg.getWidth()/width) {
-							resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
-									Mode.FIT_TO_HEIGHT, width, height);
-						} else {
-							resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
-									Mode.FIT_TO_WIDTH, width, height);
-						}
-						resized.flush();
-						int x = (resized.getWidth() - width) / 2;
-						int y = (resized.getHeight() - height) / 2;
-						resized = Scalr.crop(resized, x, y, width, height);
-					} else if (width != null && height != null) {
-						resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
-								Mode.FIT_EXACT, width, height);
-					} else if (height != null) {
-						resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
-								Mode.FIT_TO_HEIGHT, height);
-					} else {
-						resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY, width);
-					}
+					BufferedImage resized = doResize(width, height, stretch, srcImg);
 					persistImage(src, srcImg, resized, fDest, m);
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
@@ -163,6 +147,103 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		});
+	}
+
+	private void resizeMultiple(final Message<JsonObject> m) {
+		final JsonArray destinations = m.body().getArray("destinations");
+		if (destinations == null || destinations.size() == 0) {
+			sendError(m, "Invalid outputs files.");
+			return;
+		}
+		final FileAccess fSrc = getFileAccess(m, m.body().getString("src"));
+		if (fSrc == null) {
+			return;
+		}
+		fSrc.read(m.body().getString("src"), new Handler<ImageFile>() {
+			@Override
+			public void handle(ImageFile src) {
+				if (src == null) {
+					sendError(m, "Input file not found.");
+					return;
+				}
+				final AtomicInteger count = new AtomicInteger(destinations.size());
+				final JsonObject results = new JsonObject();
+				BufferedImage srcImg;
+				try {
+					srcImg = ImageIO.read(src.getInputStream());
+				} catch (IOException e) {
+					logger.error("Error processing image.", e);
+					sendError(m, "Error processing image.", e);
+					return;
+				}
+				for (Object o: destinations) {
+					if (!(o instanceof JsonObject)) {
+						checkReply(m, count, results);
+						continue;
+					}
+					JsonObject output = (JsonObject) o;
+					final Integer width = output.getInteger("width");
+					final Integer height = output.getInteger("height");
+					final boolean stretch = output.getBoolean("stretch", false);
+					final FileAccess fDest = getFileAccess(m, output.getString("dest"));
+					if (fDest == null) {
+						checkReply(m, count, results);
+						continue;
+					}
+					try {
+						BufferedImage resized = doResize(width, height, stretch, srcImg);
+						persistImage(src, srcImg, resized, fDest, output.getString("dest"),
+								new Handler<String>() {
+							@Override
+							public void handle(String event) {
+								if (event != null && !event.trim().isEmpty()) {
+									results.putString(width + "x" + height, event);
+								}
+								checkReply(m, count, results);
+							}
+						});
+					} catch (IOException e) {
+						logger.error("Error processing image.", e);
+					}
+				}
+			}
+
+			private void checkReply(Message<JsonObject> m, AtomicInteger count, JsonObject results) {
+				final int c = count.decrementAndGet();
+				if (c == 0 && results != null && results.size() > 0) {
+					sendOK(m,  new JsonObject().putObject("outputs", results));
+				} else if (c == 0) {
+					sendError(m, "Unable to resize image.");
+				}
+			}
+		});
+	}
+
+	private BufferedImage doResize(Integer width, Integer height, boolean stretch,
+			BufferedImage srcImg) {
+		BufferedImage resized;
+		if (width != null && height != null && !stretch) {
+			if (srcImg.getHeight()/height < srcImg.getWidth()/width) {
+				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+						Mode.FIT_TO_HEIGHT, width, height);
+			} else {
+				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+						Mode.FIT_TO_WIDTH, width, height);
+			}
+			resized.flush();
+			int x = (resized.getWidth() - width) / 2;
+			int y = (resized.getHeight() - height) / 2;
+			resized = Scalr.crop(resized, x, y, width, height);
+		} else if (width != null && height != null) {
+			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+					Mode.FIT_EXACT, width, height);
+		} else if (height != null) {
+			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+					Mode.FIT_TO_HEIGHT, height);
+		} else {
+			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY, width);
+		}
+		return resized;
 	}
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
@@ -173,16 +254,27 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		resized.flush();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
 				src.getContentType());
-		fDest.write(m.body().getString("dest"), outImg, new Handler<Boolean>() {
+		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
 			@Override
-			public void handle(Boolean result) {
-				if (Boolean.TRUE.equals(result)) {
-					sendOK(m);
+			public void handle(String result) {
+				if (result != null && !result.trim().isEmpty()) {
+					sendOK(m, new JsonObject().putString("output", result));
 				} else {
 					sendError(m, "Error writing file.");
 				}
 			}
 		});
+	}
+
+	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
+			FileAccess fDest, String destination, Handler<String> handler) throws IOException {
+		srcImg.flush();
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		ImageIO.write(resized, getExtension(src.getFilename()), out);
+		resized.flush();
+		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
+				src.getContentType());
+		fDest.write(destination, outImg, handler);
 	}
 
 	private FileAccess getFileAccess(Message<JsonObject> m, String path) {
