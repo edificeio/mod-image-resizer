@@ -16,7 +16,7 @@ def configurePom(def pom) {
 		description 'Image resizer BusMod for Vert.x'
 		inceptionYear '2013'
 		packaging 'zip'
-		url 'http://code.web-education.net/projects/one-core'
+		url 'https://github.com/web-education/mod-image-resizer'
 
 		developers {
 			developer {
@@ -27,13 +27,13 @@ def configurePom(def pom) {
 		}
 
 		scm {
-			url 'git@code.web-education.net:vertx/mod-image-resizer.git'
+			url 'git@github.com:web-education/mod-image-resizer.git'
 		}
 
 		licenses {
 			license {
-				name 'GNU Affero General Public License, Version 2.0'
-				url 'https://www.gnu.org/licenses/agpl.txt'
+				name 'GNU Lesser General Public License'
+				url 'http://www.gnu.org/licenses/lgpl-3.0.txt'
 				distribution 'repo'
 			}
 		}
