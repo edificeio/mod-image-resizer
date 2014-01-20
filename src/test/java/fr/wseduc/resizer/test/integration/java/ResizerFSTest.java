@@ -1,4 +1,4 @@
-package com.wse.io.test.integration.java;
+package fr.wseduc.resizer.test.integration.java;
 
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
@@ -17,7 +17,7 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class ResizerFSTest extends TestVerticle {
 
-	private static final String SRC_IMG = "file://src/test/resources/img.jpg";
+	public static final String SRC_IMG = "file://src/test/resources/img.jpg";
 	private EventBus eb;
 
 	@Override

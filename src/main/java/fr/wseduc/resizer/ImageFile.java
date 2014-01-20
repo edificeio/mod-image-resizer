@@ -1,4 +1,4 @@
-package com.wse.io;
+package fr.wseduc.resizer;
 
 
 import java.io.ByteArrayInputStream;

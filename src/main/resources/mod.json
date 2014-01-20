@@ -1,5 +1,5 @@
 {
-	"main" : "com.wse.io.ImageResizer",
+	"main" : "fr.wseduc.resizer.ImageResizer",
 	"worker": true,
 	"preserve-cwd" : true,
 	"address" : "wse.image.resizer"

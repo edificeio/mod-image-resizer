@@ -1,4 +1,4 @@
-package com.wse.io;
+package fr.wseduc.resizer;
 
 import org.vertx.java.core.Handler;
 

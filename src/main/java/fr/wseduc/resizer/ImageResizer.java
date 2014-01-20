@@ -1,4 +1,4 @@
-package com.wse.io;
+package fr.wseduc.resizer;
 
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;

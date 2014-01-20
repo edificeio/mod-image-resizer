@@ -1,4 +1,4 @@
-package com.wse.io;
+package fr.wseduc.resizer;
 
 import com.mongodb.*;
 import com.mongodb.gridfs.GridFS;
