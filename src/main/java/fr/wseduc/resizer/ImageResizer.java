@@ -225,7 +225,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			BufferedImage srcImg) {
 		BufferedImage resized;
 		if (width != null && height != null && !stretch) {
-			if (srcImg.getHeight()/height < srcImg.getWidth()/width) {
+			if (srcImg.getHeight()/(float)height < srcImg.getWidth()/(float)width) {
 				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 						Mode.FIT_TO_HEIGHT, width, height);
 			} else {
