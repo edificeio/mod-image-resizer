@@ -13,6 +13,7 @@ javadoc {
 
 def configurePom(def pom) {
 	pom.project {
+    name 'mod-image-resizer'
 		description 'Image resizer BusMod for Vert.x'
 		inceptionYear '2013'
 		packaging 'zip'
@@ -27,13 +28,15 @@ def configurePom(def pom) {
 		}
 
 		scm {
-			url 'git@github.com:web-education/mod-image-resizer.git'
+      connection 'scm:git:ssh://git@github.com:web-education/mod-image-resizer.git'
+      developerConnection 'scm:git:ssh://git@github.com:web-education/mod-image-resizer.git'
+      url 'https://github.com/web-education/mod-image-resizer.git'
 		}
 
 		licenses {
 			license {
-				name 'GNU Lesser General Public License'
-				url 'http://www.gnu.org/licenses/lgpl-3.0.txt'
+				name 'The Apache Software License, Version 2.0'
+				url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
 				distribution 'repo'
 			}
 		}
