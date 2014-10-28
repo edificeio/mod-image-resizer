@@ -34,13 +34,14 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 public class ResizerFSTest extends TestVerticle {
 
 	public static final String SRC_IMG = "file://src/test/resources/img.jpg";
+	public static final String ADDRESS = "image.resizer";
 	private EventBus eb;
 
 	@Override
 	public void start() {
 		eb = vertx.eventBus();
 		JsonObject config = new JsonObject();
-		config.putString("address", "wse.image.resizer");
+		config.putString("address", ADDRESS);
 		config.putString("base-path", new File(".").getAbsolutePath());
 		container.deployModule(System.getProperty("vertx.modulename"),
 				config, 1, new AsyncResultHandler<String>() {
@@ -72,7 +73,7 @@ public class ResizerFSTest extends TestVerticle {
 				.putString("dest", "file://wb300x0.jpg")
 				.putNumber("width", 300);
 
-		eb.send("wse.image.resizer", json, new Handler<Message<JsonObject>>() {
+		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {
 			public void handle(Message<JsonObject> reply) {
 				assertEquals("ok", reply.body().getString("status"));
 				testComplete();
@@ -91,7 +92,7 @@ public class ResizerFSTest extends TestVerticle {
 				.putNumber("x", 50)
 				.putNumber("y", 100);
 
-		eb.send("wse.image.resizer", json, new Handler<Message<JsonObject>>() {
+		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {
 			public void handle(Message<JsonObject> reply) {
 				assertEquals("ok", reply.body().getString("status"));
 				testComplete();
@@ -119,7 +120,7 @@ public class ResizerFSTest extends TestVerticle {
 				.putString("src", SRC_IMG)
 				.putArray("destinations", outputs);
 
-		eb.send("wse.image.resizer", json, new Handler<Message<JsonObject>>() {
+		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {
 			public void handle(Message<JsonObject> reply) {
 				assertEquals("ok", reply.body().getString("status"));
 				testComplete();

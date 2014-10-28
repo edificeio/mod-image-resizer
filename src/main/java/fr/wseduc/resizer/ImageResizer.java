@@ -26,6 +26,7 @@ import org.vertx.java.core.json.JsonObject;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -43,7 +44,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	public void start() {
 		super.start();
 		fileAccessProviders.put("file", new FileSystemFileAccess(
-				vertx, config.getString("base-path")));
+				vertx, config.getString("base-path", new File(".").getAbsolutePath())));
 		JsonObject gridfs = config.getObject("gridfs");
 		if (gridfs != null) {
 			String host = gridfs.getString("host", "localhost");
@@ -61,7 +62,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		}
-		eb.registerHandler(config.getString("address"), this);
+		eb.registerHandler(config.getString("address", "image.resizer"), this);
 		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
 	}
 
