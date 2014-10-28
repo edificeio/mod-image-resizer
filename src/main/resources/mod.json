@@ -2,5 +2,11 @@
 	"main" : "fr.wseduc.resizer.ImageResizer",
 	"worker": true,
 	"preserve-cwd" : true,
-	"address" : "wse.image.resizer"
+	"address" : "wse.image.resizer",
+	"description": "Image resizer to resize or crop images from a vert.x module",
+	"licenses": ["The Apache Software License, Version 2.0"],
+	"author": "WebServices pour l'Education",
+	"keywords": ["image", "resize", "thumbnail", "crop"],
+	"homepage": "https://github.com/web-education/mod-image-resizer",
+	"developers": ["Damien Boissin"]
 }
