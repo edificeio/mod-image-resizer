@@ -22,6 +22,11 @@ import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.file.FileSystem;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 public class FileSystemFileAccess implements FileAccess {
 
 	private final FileSystem fs;
@@ -45,7 +50,7 @@ public class FileSystemFileAccess implements FileAccess {
 			@Override
 			public void handle(AsyncResult<Buffer> ar) {
 				if (ar.succeeded()) {
-					handler.handle(new ImageFile(ar.result().getBytes(), getFileName(p), ""));
+					handler.handle(new ImageFile(ar.result().getBytes(), getFileName(p), getContentType(p)));
 				} else {
 					handler.handle(null);
 				}
@@ -94,6 +99,15 @@ public class FileSystemFileAccess implements FileAccess {
 			}
 		}
 		return "";
+	}
+
+	private String getContentType(String p) {
+		try {
+			Path source = Paths.get(p);
+			return Files.probeContentType(source);
+		} catch (IOException e) {
+			return "";
+		}
 	}
 
 }
