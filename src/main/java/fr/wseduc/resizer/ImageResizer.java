@@ -18,6 +18,9 @@ package fr.wseduc.resizer;
 
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
+import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonArray;
@@ -28,6 +31,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +46,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 
 	@Override
-	public void start() {
+	public void start(final Future<Void> startedResult) {
 		super.start();
 		fileAccessProviders.put("file", new FileSystemFileAccess(
 				vertx, config.getString("base-path", new File(".").getAbsolutePath())));
@@ -62,8 +67,40 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		}
+		JsonObject swift = config.getObject("swift");
+		if (swift != null) {
+			String uri = swift.getString("uri");
+			String account = swift.getString("account");
+			String username = swift.getString("user");
+			String password = swift.getString("key");
+			if (uri != null && account != null && username != null && password != null) {
+				try {
+					final SwiftAccess swiftAccess = new SwiftAccess(
+							vertx, new URI(uri), account);
+					swiftAccess.init(username, password, new AsyncResultHandler<Void>() {
+						@Override
+						public void handle(AsyncResult<Void> event) {
+							if (event.succeeded()) {
+								fileAccessProviders.put("swift", swiftAccess);
+							} else {
+								logger.error("Swift authentication error", event.cause());
+							}
+							registerHandler(startedResult);
+						}
+					});
+				} catch (URISyntaxException e) {
+					logger.error("Invalid swift uri.", e);
+				}
+			}
+		} else {
+			registerHandler(startedResult);
+		}
+	}
+
+	private void registerHandler(Future<Void> startedResult) {
 		eb.registerHandler(config.getString("address", "image.resizer"), this);
 		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
+		startedResult.setResult(null);
 	}
 
 	@Override

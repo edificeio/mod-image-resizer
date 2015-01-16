@@ -22,6 +22,8 @@ import com.mongodb.MongoClient;
 import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.util.JSON;
+import fr.wseduc.swift.SwiftClient;
+import fr.wseduc.swift.storage.StorageObject;
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -33,9 +35,12 @@ import org.vertx.java.core.json.JsonObject;
 import org.vertx.testtools.TestVerticle;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 import static org.vertx.testtools.VertxAssert.assertEquals;
+import static org.vertx.testtools.VertxAssert.fail;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class ResizerFSTest extends TestVerticle {
@@ -46,30 +51,49 @@ public class ResizerFSTest extends TestVerticle {
 	private EventBus eb;
 	private DB db;
 	private MongoClient mongo;
+	private SwiftClient swiftClient;
 
 	@Override
 	public void start() {
 		eb = vertx.eventBus();
-		JsonObject config = new JsonObject();
+		final JsonObject config = new JsonObject();
 		config.putString("address", ADDRESS);
 		config.putString("base-path", new File(".").getAbsolutePath());
 		config.putObject("gridfs", new JsonObject().putString("db_name", DB_NAME));
+		JsonObject swiftConfig = new JsonObject()
+				.putString("uri", "http://172.17.0.25:8080")
+				.putString("user", "test:tester")
+				.putString("key", "testing")
+				.putString("account", "AUTH_test");
+		config.putObject("swift", swiftConfig);
 		try {
 			mongo = new MongoClient();
 			db = mongo.getDB(DB_NAME);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-		container.deployModule(System.getProperty("vertx.modulename"),
-				config, 1, new AsyncResultHandler<String>() {
-					public void handle(AsyncResult<String> ar) {
-						if (ar.succeeded()) {
-							ResizerFSTest.super.start();
-						} else {
-							ar.cause().printStackTrace();
+		try {
+			swiftClient = new SwiftClient(vertx, new URI(swiftConfig.getString("uri")),
+					swiftConfig.getString("account"));
+			swiftClient.authenticate(swiftConfig.getString("user"), swiftConfig.getString("key"),
+					new AsyncResultHandler<Void>() {
+						@Override
+						public void handle(AsyncResult<Void> event) {
+							container.deployModule(System.getProperty("vertx.modulename"),
+									config, 1, new AsyncResultHandler<String>() {
+										public void handle(AsyncResult<String> ar) {
+											if (ar.succeeded()) {
+												ResizerFSTest.super.start();
+											} else {
+												ar.cause().printStackTrace();
+											}
+										}
+									});
 						}
-					}
-				});
+					});
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -117,6 +141,34 @@ public class ResizerFSTest extends TestVerticle {
 				GridFSDBFile f = fs.findOne((DBObject) JSON.parse("{\"_id\":\"" + id + "\"}"));
 				assertEquals("image/jpeg", f.getContentType());
 				testComplete();
+			}
+		});
+	}
+
+	@Test
+	public void testResizeStoreSwift() throws Exception {
+		JsonObject json = new JsonObject()
+				.putString("action", "resize")
+				.putString("src", SRC_IMG)
+				.putString("dest", "swift://testcontainer")
+				.putNumber("width", 300);
+
+		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {
+			public void handle(Message<JsonObject> reply) {
+				assertEquals("ok", reply.body().getString("status"));
+				String id = reply.body().getString("output");
+				swiftClient.readFile(id, "testcontainer", new AsyncResultHandler<StorageObject>() {
+					@Override
+					public void handle(AsyncResult<StorageObject> event) {
+						if (event.succeeded()) {
+							assertEquals("image/jpeg", event.result().getContentType());
+							assertEquals("img.jpg", event.result().getFilename());
+						} else {
+							fail(event.cause().getMessage());
+						}
+						testComplete();
+					}
+				});
 			}
 		});
 	}

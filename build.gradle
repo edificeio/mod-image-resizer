@@ -3,6 +3,7 @@ apply from: "gradle/vertx.gradle"
 dependencies {
     compile "org.mongodb:mongo-java-driver:$mongoDbVersion"
     compile "org.imgscalr:imgscalr-lib:$imgscalrVersion"
+	compile "fr.wseduc:vertx-swift-client:$swiftClientVersion"
 }
 
 javadoc {
