@@ -63,8 +63,7 @@ public class ResizerFSTest extends TestVerticle {
 		JsonObject swiftConfig = new JsonObject()
 				.putString("uri", "http://172.17.0.25:8080")
 				.putString("user", "test:tester")
-				.putString("key", "testing")
-				.putString("account", "AUTH_test");
+				.putString("key", "testing");
 		config.putObject("swift", swiftConfig);
 		try {
 			mongo = new MongoClient();
@@ -73,8 +72,7 @@ public class ResizerFSTest extends TestVerticle {
 			e.printStackTrace();
 		}
 		try {
-			swiftClient = new SwiftClient(vertx, new URI(swiftConfig.getString("uri")),
-					swiftConfig.getString("account"));
+			swiftClient = new SwiftClient(vertx, new URI(swiftConfig.getString("uri")));
 			swiftClient.authenticate(swiftConfig.getString("user"), swiftConfig.getString("key"),
 					new AsyncResultHandler<Void>() {
 						@Override

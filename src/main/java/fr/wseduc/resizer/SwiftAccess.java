@@ -14,8 +14,8 @@ public class SwiftAccess implements FileAccess {
 
 	private final SwiftClient client;
 
-	public SwiftAccess(Vertx vertx, URI uri, String account) {
-		client = new SwiftClient(vertx, uri, account);
+	public SwiftAccess(Vertx vertx, URI uri) {
+		client = new SwiftClient(vertx, uri);
 	}
 
 	public void init(String username, String password, AsyncResultHandler<Void> handler) {

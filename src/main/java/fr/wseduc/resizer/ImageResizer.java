@@ -70,13 +70,11 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		JsonObject swift = config.getObject("swift");
 		if (swift != null) {
 			String uri = swift.getString("uri");
-			String account = swift.getString("account");
 			String username = swift.getString("user");
 			String password = swift.getString("key");
-			if (uri != null && account != null && username != null && password != null) {
+			if (uri != null && username != null && password != null) {
 				try {
-					final SwiftAccess swiftAccess = new SwiftAccess(
-							vertx, new URI(uri), account);
+					final SwiftAccess swiftAccess = new SwiftAccess(vertx, new URI(uri));
 					swiftAccess.init(username, password, new AsyncResultHandler<Void>() {
 						@Override
 						public void handle(AsyncResult<Void> event) {
