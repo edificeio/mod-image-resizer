@@ -61,7 +61,7 @@ public class ResizerFSTest extends TestVerticle {
 		config.putString("base-path", new File(".").getAbsolutePath());
 		config.putObject("gridfs", new JsonObject().putString("db_name", DB_NAME));
 		JsonObject swiftConfig = new JsonObject()
-				.putString("uri", "http://172.17.0.25:8080")
+				.putString("uri", "http://172.17.0.2:8080")
 				.putString("user", "test:tester")
 				.putString("key", "testing");
 		config.putObject("swift", swiftConfig);
@@ -105,6 +105,7 @@ public class ResizerFSTest extends TestVerticle {
 		vertx.fileSystem().delete("wb300x250.jpg", null);
 		vertx.fileSystem().delete("wb300x300.jpg", null);
 		vertx.fileSystem().delete("crop500x500.jpg", null);
+		vertx.fileSystem().delete("compressed.jpg", null);
 	}
 
 	@Test
@@ -217,5 +218,22 @@ public class ResizerFSTest extends TestVerticle {
 			}
 		});
 	}
+
+	@Test
+	public void testCompress() throws Exception {
+		JsonObject json = new JsonObject()
+				.putString("action", "compress")
+				.putString("src", SRC_IMG)
+				.putString("dest", "file://compressed.jpg")
+				.putNumber("quality", 0.5);
+
+		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {
+			public void handle(Message<JsonObject> reply) {
+				assertEquals("ok", reply.body().getString("status"));
+				testComplete();
+			}
+		});
+	}
+
 
 }

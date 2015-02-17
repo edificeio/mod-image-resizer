@@ -26,7 +26,11 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -35,6 +39,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -121,17 +126,53 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			case "resizeMultiple" :
 				resizeMultiple(m);
 				break;
+			case "compress" :
+				compress(m);
+				break;
 			default :
 				sendError(m, "Invalid or missing action");
 		}
 	}
 
+	private void compress(final Message<JsonObject> m) {
+		final Number quality = m.body().getNumber("quality");
+		if (quality == null || quality.floatValue() > 1f || quality.floatValue() <= 0f) {
+			sendError(m, "Invalid quality.");
+			return;
+		}
+		final FileAccess fSrc = getFileAccess(m, m.body().getString("src"));
+		if (fSrc == null) {
+			return;
+		}
+		final FileAccess fDest = getFileAccess(m, m.body().getString("dest"));
+		if (fDest == null) {
+			return;
+		}
+		fSrc.read(m.body().getString("src"), new Handler<ImageFile>() {
+			@Override
+			public void handle(ImageFile src) {
+				if (src == null) {
+					sendError(m, "Input file not found.");
+					return;
+				}
+				try {
+					BufferedImage srcImg = ImageIO.read(src.getInputStream());
+					persistImage(src, srcImg, srcImg, fDest, quality.floatValue(), m);
+				} catch (IOException e) {
+					logger.error("Error processing image.", e);
+					sendError(m, "Error processing image.", e);
+				}
+			}
+		});
+	}
 
 	private void crop(final Message<JsonObject> m) {
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
 		final Integer x = m.body().getInteger("x", 0);
 		final Integer y = m.body().getInteger("y", 0);
+		Number n = m.body().getNumber("quality");
+		final float quality = (n != null) ? n.floatValue() : 0.8f;
 		if (width == null || height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -158,7 +199,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 						return;
 					}
 					BufferedImage cropped = Scalr.crop(srcImg, x, y, width, height);
-					persistImage(src, srcImg, cropped, fDest, m);
+					persistImage(src, srcImg, cropped, fDest, quality, m);
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
 					sendError(m, "Error processing image.", e);
@@ -171,6 +212,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
 		final boolean stretch = m.body().getBoolean("stretch", false);
+		Number n = m.body().getNumber("quality");
+		final float quality = (n != null) ? n.floatValue() : 0.8f;
 		if (width == null && height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -193,7 +236,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				try {
 					BufferedImage srcImg = ImageIO.read(src.getInputStream());
 					BufferedImage resized = doResize(width, height, stretch, srcImg);
-					persistImage(src, srcImg, resized, fDest, m);
+					persistImage(src, srcImg, resized, fDest, quality, m);
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
 					sendError(m, "Error processing image.", e);
@@ -204,6 +247,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void resizeMultiple(final Message<JsonObject> m) {
 		final JsonArray destinations = m.body().getArray("destinations");
+		Number n = m.body().getNumber("quality");
+		final float quality = (n != null) ? n.floatValue() : 0.8f;
 		if (destinations == null || destinations.size() == 0) {
 			sendError(m, "Invalid outputs files.");
 			return;
@@ -245,7 +290,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 					}
 					try {
 						BufferedImage resized = doResize(width, height, stretch, srcImg);
-						persistImage(src, srcImg, resized, fDest, output.getString("dest"),
+						persistImage(src, srcImg, resized, fDest, output.getString("dest"), quality,
 								new Handler<String>() {
 							@Override
 							public void handle(String event) {
@@ -302,13 +347,30 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
-			FileAccess fDest, final Message<JsonObject> m) throws IOException {
+							  FileAccess fDest, final Message<JsonObject> m) throws IOException {
+		persistImage(src, srcImg, resized, fDest, 0.8f, m);
+	}
+
+	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
+			FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
 		srcImg.flush();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		ImageIO.write(resized, getExtension(src.getFilename()), out);
+		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
+		ImageWriter writer = writers.next();
+
+		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
+		writer.setOutput(ios);
+
+		ImageWriteParam param = writer.getDefaultWriteParam();
+
+		param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		param.setCompressionQuality(quality);
+		writer.write(null, new IIOImage(resized, null, null), param);
 		resized.flush();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
 				src.getContentType());
+		ios.close();
+		out.close();
 		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
 			@Override
 			public void handle(String result) {
@@ -323,12 +385,29 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
 			FileAccess fDest, String destination, Handler<String> handler) throws IOException {
+		persistImage(src, srcImg, resized, fDest, destination, 0.8f, handler);
+	}
+
+	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
+			FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
 		srcImg.flush();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		ImageIO.write(resized, getExtension(src.getFilename()), out);
+		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
+		ImageWriter writer = writers.next();
+
+		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
+		writer.setOutput(ios);
+
+		ImageWriteParam param = writer.getDefaultWriteParam();
+
+		param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		param.setCompressionQuality(quality);
+		writer.write(null, new IIOImage(resized, null, null), param);
 		resized.flush();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
 				src.getContentType());
+		ios.close();
+		out.close();
 		fDest.write(destination, outImg, handler);
 	}
 
