@@ -370,12 +370,13 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
 				src.getContentType());
 		ios.close();
+		final int size = out.size();
 		out.close();
 		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
 			@Override
 			public void handle(String result) {
 				if (result != null && !result.trim().isEmpty()) {
-					sendOK(m, new JsonObject().putString("output", result));
+					sendOK(m, new JsonObject().putString("output", result).putNumber("size", size));
 				} else {
 					sendError(m, "Error writing file.");
 				}
