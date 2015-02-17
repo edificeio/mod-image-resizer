@@ -67,19 +67,29 @@ public class GridFsFileAccess implements FileAccess {
 			handler.handle(null);
 			return;
 		}
-		GridFS fs = new GridFS(db, path[0]);
-		GridFSInputFile f = fs.createFile(img.getData());
 		String id;
 		if (path.length == 2 && path[1] != null && !path[1].trim().isEmpty()) {
 			id = path[1];
 		} else {
 			id = UUID.randomUUID().toString();
 		}
+		GridFS fs = new GridFS(db, path[0]);
+		try {
+			saveFile(img, id, fs);
+		} catch (DuplicateKeyException e) {
+			fs.remove(new BasicDBObject("_id", id));
+			saveFile(img, id, fs);
+		}
+		handler.handle(id);
+	}
+
+	private GridFSInputFile saveFile(ImageFile img, String id, GridFS fs) {
+		GridFSInputFile f = fs.createFile(img.getData());
 		f.setId(id);
 		f.setContentType(img.getContentType());
 		f.setFilename(img.getFilename());
 		f.save();
-		handler.handle(id);
+		return f;
 	}
 
 	@Override
