@@ -355,7 +355,14 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
 		srcImg.flush();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		if (logger.isDebugEnabled()) {
+			logger.debug("Original file name : " + src.getFilename());
+			logger.debug("Original file extension : " + getExtension(src.getFilename()));
+		}
 		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
+		if (!writers.hasNext()) {
+			writers =  ImageIO.getImageWritersByFormatName("jpg");
+		}
 		ImageWriter writer = writers.next();
 
 		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
@@ -393,7 +400,15 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
 		srcImg.flush();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		if (logger.isDebugEnabled()) {
+			logger.debug("Original file name : " + src.getFilename());
+			logger.debug("Original file extension : " + getExtension(src.getFilename()));
+			logger.debug("Destination : " + destination);
+		}
 		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
+		if (!writers.hasNext()) {
+			writers =  ImageIO.getImageWritersByFormatName("jpg");
+		}
 		ImageWriter writer = writers.next();
 
 		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
