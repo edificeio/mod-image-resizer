@@ -369,9 +369,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		writer.setOutput(ios);
 
 		ImageWriteParam param = writer.getDefaultWriteParam();
-
-		param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-		param.setCompressionQuality(quality);
+		if (param.canWriteCompressed()) {
+			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+			param.setCompressionQuality(quality);
+		}
 		writer.write(null, new IIOImage(resized, null, null), param);
 		resized.flush();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
@@ -415,9 +416,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		writer.setOutput(ios);
 
 		ImageWriteParam param = writer.getDefaultWriteParam();
-
-		param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-		param.setCompressionQuality(quality);
+		if (param.canWriteCompressed()) {
+			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+			param.setCompressionQuality(quality);
+		}
 		writer.write(null, new IIOImage(resized, null, null), param);
 		resized.flush();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
