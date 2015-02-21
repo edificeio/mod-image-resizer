@@ -353,33 +353,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
 			FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
-		srcImg.flush();
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		if (logger.isDebugEnabled()) {
-			logger.debug("Original file name : " + src.getFilename());
-			logger.debug("Original file extension : " + getExtension(src.getFilename()));
-		}
-		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
-		if (!writers.hasNext()) {
-			writers =  ImageIO.getImageWritersByFormatName("jpg");
-		}
-		ImageWriter writer = writers.next();
-
-		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
-		writer.setOutput(ios);
-
-		ImageWriteParam param = writer.getDefaultWriteParam();
-		if (param.canWriteCompressed()) {
-			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			param.setCompressionQuality(quality);
-		}
-		writer.write(null, new IIOImage(resized, null, null), param);
-		resized.flush();
-		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
-				src.getContentType());
-		ios.close();
-		final int size = out.size();
-		out.close();
+		ImageFile outImg = compressImage(src, srcImg, resized, quality);
+		final int size = outImg.getData().length;
 		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
 			@Override
 			public void handle(String result) {
@@ -399,34 +374,66 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
 			FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
+		ImageFile outImg = compressImage(src, srcImg, resized, quality);
+		fDest.write(destination, outImg, handler);
+	}
+
+	private ImageWriter getImageWriter(ImageFile src) {
+		final String extension = getExtension(src.getFilename());
+		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(extension);
+		if (!writers.hasNext()) {
+			writers = ImageIO.getImageWritersByFormatName("jpg");
+		}
+
+		ImageWriter writer = null;
+		if ("png".equalsIgnoreCase(extension)) {
+			while (writers.hasNext()) {
+				ImageWriter candidate = writers.next();
+				final String className = candidate.getClass().getSimpleName();
+				logger.debug(className);
+				if ("CLibPNGImageWriter".equals(className)) {
+					writer = candidate;
+					break;
+				} else if (writer == null) {
+					writer = candidate;
+				}
+			}
+		} else {
+			writer = writers.next();
+		}
+		return writer;
+	}
+
+	private ImageFile compressImage(ImageFile src, BufferedImage srcImg, BufferedImage resized, float quality)
+			throws IOException {
 		srcImg.flush();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		if (logger.isDebugEnabled()) {
 			logger.debug("Original file name : " + src.getFilename());
 			logger.debug("Original file extension : " + getExtension(src.getFilename()));
-			logger.debug("Destination : " + destination);
 		}
-		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(getExtension(src.getFilename()));
-		if (!writers.hasNext()) {
-			writers =  ImageIO.getImageWritersByFormatName("jpg");
-		}
-		ImageWriter writer = writers.next();
 
-		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
-		writer.setOutput(ios);
-
+		ImageWriter writer = getImageWriter(src);
 		ImageWriteParam param = writer.getDefaultWriteParam();
 		if (param.canWriteCompressed()) {
 			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			param.setCompressionQuality(quality);
+			if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
+				param.setCompressionType(param.getCompressionTypes()[0]);
+			}
+			if (param.getCompressionType() != null) {
+				param.setCompressionQuality(quality);
+			} else {
+				param.setCompressionMode(ImageWriteParam.MODE_DISABLED);
+			}
 		}
+		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
+		writer.setOutput(ios);
 		writer.write(null, new IIOImage(resized, null, null), param);
 		resized.flush();
-		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(),
-				src.getContentType());
 		ios.close();
+		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(), src.getContentType());
 		out.close();
-		fDest.write(destination, outImg, handler);
+		return outImg;
 	}
 
 	private FileAccess getFileAccess(Message<JsonObject> m, String path) {
