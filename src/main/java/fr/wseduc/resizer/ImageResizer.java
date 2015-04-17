@@ -16,6 +16,7 @@
 
 package fr.wseduc.resizer;
 
+import com.mongodb.ReadPreference;
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 import org.vertx.java.core.AsyncResult;
@@ -62,11 +63,18 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			String dbName = gridfs.getString("db_name");
 			String username = gridfs.getString("username");
 			String password = gridfs.getString("password");
+			ReadPreference readPreference = ReadPreference.valueOf(
+					gridfs.getString("read_preference", "primary"));
 			int poolSize = gridfs.getInteger("pool_size", 10);
+			boolean autoConnectRetry = gridfs.getBoolean("auto_connect_retry", true);
+			int socketTimeout = gridfs.getInteger("socket_timeout", 60000);
+			boolean useSSL = gridfs.getBoolean("use_ssl", false);
+			JsonArray seedsProperty = gridfs.getArray("seeds");
 			if (dbName != null) {
 				try {
 					fileAccessProviders.put("gridfs",
-						new GridFsFileAccess(host, port, dbName, username, password, poolSize));
+						new GridFsFileAccess(host, port, dbName, username, password, poolSize,
+								readPreference, autoConnectRetry, socketTimeout, useSSL, seedsProperty));
 				} catch (UnknownHostException e) {
 					logger.error("Invalid mongoDb configuration.", e);
 				}

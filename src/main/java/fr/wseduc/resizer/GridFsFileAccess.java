@@ -22,9 +22,13 @@ import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
 import com.mongodb.util.JSON;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class GridFsFileAccess implements FileAccess {
@@ -33,15 +37,41 @@ public class GridFsFileAccess implements FileAccess {
 	private final DB db;
 
 	public GridFsFileAccess(String host, int port, String dbName, String username,
-			String password, int poolSize) throws UnknownHostException {
+			String password, int poolSize, ReadPreference readPreference, boolean autoConnectRetry,
+			int socketTimeout, boolean useSSL, JsonArray seedsProperty) throws UnknownHostException {
 		MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
 		builder.connectionsPerHost(poolSize);
-		ServerAddress address = new ServerAddress(host, port);
-		mongo = new MongoClient(address, builder.build());
+		builder.autoConnectRetry(autoConnectRetry);
+		builder.socketTimeout(socketTimeout);
+		builder.readPreference(readPreference);
+
+		if (useSSL) {
+			builder.socketFactory(SSLSocketFactory.getDefault());
+		}
+
+		if (seedsProperty == null) {
+			ServerAddress address = new ServerAddress(host, port);
+			mongo = new MongoClient(address, builder.build());
+		} else {
+			List<ServerAddress> seeds = makeSeeds(seedsProperty);
+			mongo = new MongoClient(seeds, builder.build());
+		}
+
 		db = mongo.getDB(dbName);
 		if (username != null && password != null) {
 			db.authenticate(username, password.toCharArray());
 		}
+	}
+
+	private List<ServerAddress> makeSeeds(JsonArray seedsProperty) throws UnknownHostException {
+		List<ServerAddress> seeds = new ArrayList<>();
+		for (Object elem : seedsProperty) {
+			JsonObject address = (JsonObject) elem;
+			String host = address.getString("host");
+			int port = address.getInteger("port");
+			seeds.add(new ServerAddress(host, port));
+		}
+		return seeds;
 	}
 
 	@Override
