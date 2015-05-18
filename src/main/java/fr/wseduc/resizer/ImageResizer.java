@@ -441,6 +441,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		ios.close();
 		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(), src.getContentType());
 		out.close();
+		writer.dispose();
 		return outImg;
 	}
 
