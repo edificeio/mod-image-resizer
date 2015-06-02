@@ -49,6 +49,7 @@ import static org.imgscalr.Scalr.*;
 
 public class ImageResizer extends BusModBase implements Handler<Message<JsonObject>> {
 
+	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 
 	@Override
@@ -425,7 +426,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		ImageWriteParam param = writer.getDefaultWriteParam();
 		if (param.canWriteCompressed()) {
 			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
+			if (JAI_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
+				param.setCompressionType("Deflate");
+			} else if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
 				param.setCompressionType(param.getCompressionTypes()[0]);
 			}
 			if (param.getCompressionType() != null) {
