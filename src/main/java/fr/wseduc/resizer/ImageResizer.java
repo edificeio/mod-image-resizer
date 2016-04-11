@@ -55,8 +55,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	@Override
 	public void start(final Future<Void> startedResult) {
 		super.start();
-		fileAccessProviders.put("file", new FileSystemFileAccess(
-				vertx, config.getString("base-path", new File(".").getAbsolutePath())));
+		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
+				config.getBoolean("fs-flat", false)));
 		JsonObject gridfs = config.getObject("gridfs");
 		if (gridfs != null) {
 			String host = gridfs.getString("host", "localhost");
