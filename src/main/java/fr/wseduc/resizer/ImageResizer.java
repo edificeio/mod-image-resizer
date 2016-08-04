@@ -388,7 +388,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private ImageWriter getImageWriter(ImageFile src) {
-		final String extension = getExtension(src.getFilename());
+		String extension = getExtension(src.getFilename());
+		if (extension == null || extension.isEmpty()) {
+			extension = getFormatByContentType(src.getContentType());
+		}
 		Iterator<ImageWriter> writers =  ImageIO.getImageWritersByFormatName(extension);
 		if (!writers.hasNext()) {
 			writers = ImageIO.getImageWritersByFormatName("jpg");
@@ -420,6 +423,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if (logger.isDebugEnabled()) {
 			logger.debug("Original file name : " + src.getFilename());
 			logger.debug("Original file extension : " + getExtension(src.getFilename()));
+			logger.debug("Original file format : " + getFormatByContentType(src.getContentType()));
 		}
 
 		ImageWriter writer = getImageWriter(src);
@@ -468,6 +472,13 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			if (idx > 0 && fileName.length() > idx + 1) {
 				return fileName.substring(idx + 1);
 			}
+		}
+		return "";
+	}
+
+	private String getFormatByContentType(String contentType) {
+		if (contentType != null && contentType.startsWith("image/")) {
+			return contentType.substring(6);
 		}
 		return "";
 	}
