@@ -423,6 +423,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if (logger.isDebugEnabled()) {
 			logger.debug("Original file name : " + src.getFilename());
 			logger.debug("Original file extension : " + getExtension(src.getFilename()));
+			logger.debug("Original file mime type : " + src.getContentType());
 			logger.debug("Original file format : " + getFormatByContentType(src.getContentType()));
 		}
 

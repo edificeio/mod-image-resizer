@@ -187,6 +187,7 @@ public class FileSystemFileAccess implements FileAccess {
 			Path source = Paths.get(p);
 			return Files.probeContentType(source);
 		} catch (IOException e) {
+			log.error("Error finding mime type.", e);
 			return "";
 		}
 	}
