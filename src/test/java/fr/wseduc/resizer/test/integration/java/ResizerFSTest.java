@@ -45,9 +45,10 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class ResizerFSTest extends TestVerticle {
 
-	public static final String SRC_IMG = "file://src/test/resources/img.jpg";
 	public static final String ADDRESS = "image.resizer";
 	public static final String DB_NAME = "resizer_tests";
+	private String basePath;
+	public String SRC_IMG;
 	private EventBus eb;
 	private DB db;
 	private MongoClient mongo;
@@ -56,10 +57,15 @@ public class ResizerFSTest extends TestVerticle {
 	@Override
 	public void start() {
 		eb = vertx.eventBus();
+		this.basePath = new File("").getAbsolutePath() + File.separator;
+		this.SRC_IMG = "file://"+ basePath + ":src/test/resources/img.jpg";
+		System.out.println("basepath : " + basePath);
 		final JsonObject config = new JsonObject();
 		config.putString("address", ADDRESS);
-		config.putString("base-path", new File(".").getAbsolutePath());
+		config.putBoolean("fs-flat", true);
+		config.putString("base-path", basePath);
 		config.putObject("gridfs", new JsonObject().putString("db_name", DB_NAME));
+		config.putBoolean("allow-image-enlargement", true);
 		JsonObject swiftConfig = new JsonObject()
 				.putString("uri", "http://172.17.0.2:8080")
 				.putString("user", "test:tester")
@@ -113,7 +119,7 @@ public class ResizerFSTest extends TestVerticle {
 		JsonObject json = new JsonObject()
 				.putString("action", "resize")
 				.putString("src", SRC_IMG)
-				.putString("dest", "file://wb300x0.jpg")
+				.putString("dest", "file://" + basePath + ":wb300x0.jpg")
 				.putNumber("width", 300);
 
 		eb.send(ADDRESS, json, new Handler<Message<JsonObject>>() {

@@ -34,7 +34,6 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -51,12 +50,14 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
+	private boolean allowImageEnlargement = false;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
 		super.start();
 		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
 				config.getBoolean("fs-flat", false)));
+		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
 		JsonObject gridfs = config.getObject("gridfs");
 		if (gridfs != null) {
 			String host = gridfs.getString("host", "localhost");
@@ -329,8 +330,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private BufferedImage doResize(Integer width, Integer height, boolean stretch,
 			BufferedImage srcImg) {
-		BufferedImage resized;
-		if (width != null && height != null && !stretch) {
+		BufferedImage resized = null;
+		if (width != null && height != null && !stretch &&
+				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
 			if (srcImg.getHeight()/(float)height < srcImg.getWidth()/(float)width) {
 				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 						Mode.FIT_TO_HEIGHT, width, height);
@@ -342,15 +344,19 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			int x = (resized.getWidth() - width) / 2;
 			int y = (resized.getHeight() - height) / 2;
 			resized = Scalr.crop(resized, x, y, width, height);
-		} else if (width != null && height != null) {
+		} else if (width != null && height != null &&
+				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
 			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_EXACT, width, height);
-		} else if (height != null) {
+		} else if (height != null && (allowImageEnlargement || height < srcImg.getHeight())) {
 			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_HEIGHT, height);
-		} else {
+		} else if (width != null && (allowImageEnlargement || width < srcImg.getWidth())) {
 			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_WIDTH, width);
+		}
+		if (resized == null) {
+			resized = srcImg;
 		}
 		return resized;
 	}
