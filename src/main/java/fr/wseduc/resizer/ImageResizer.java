@@ -16,6 +16,12 @@
 
 package fr.wseduc.resizer;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.imaging.ImageProcessingException;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.Tag;
+import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mongodb.ReadPreference;
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
@@ -366,9 +372,16 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		persistImage(src, srcImg, resized, fDest, 0.8f, m);
 	}
 
-	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
+	private void persistImage(final ImageFile src, BufferedImage srcImg, BufferedImage resized,
 			FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
-		ImageFile outImg = compressImage(src, srcImg, resized, quality);
+		final String orientation = getOrientation(src);
+		final BufferedImage imgToPersist;
+		if (orientation != null) {
+			imgToPersist = rotateImage(orientation, resized);
+		} else {
+			imgToPersist = resized;
+		}
+		ImageFile outImg = compressImage(src, srcImg, imgToPersist, quality);
 		final int size = outImg.getData().length;
 		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
 			@Override
@@ -391,6 +404,51 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
 		ImageFile outImg = compressImage(src, srcImg, resized, quality);
 		fDest.write(destination, outImg, handler);
+	}
+
+	private String getOrientation(ImageFile src) {
+		try {
+			Metadata metadata = ImageMetadataReader.readMetadata(src.getInputStream());
+			Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+			if (directory != null) {
+				for (Tag tag : directory.getTags()) {
+					if ("Orientation".equals(tag.getTagName())) {
+						return tag.getDescription();
+					}
+				}
+			}
+		} catch (IOException|ImageProcessingException e) {
+			logger.error("Image orientation error", e);
+		}
+		return "";
+	}
+
+	private BufferedImage rotateImage(String orientation, BufferedImage source) {
+		BufferedImage dest = source;
+		switch (orientation) {
+			case "Top, right side (Mirror horizontal)":
+				dest = rotate(source, Rotation.FLIP_HORZ);
+				break;
+			case "Bottom, right side (Rotate 180)":
+				dest = rotate(source, Rotation.CW_180);
+				break;
+			case "Bottom, left side (Mirror vertical)":
+				dest = rotate(source, Rotation.FLIP_VERT);
+				break;
+			case "Left side, top (Mirror horizontal and rotate 270 CW)":
+				dest = rotate(rotate(source, Rotation.FLIP_HORZ), Rotation.CW_270);
+				break;
+			case "Right side, top (Rotate 90 CW)":
+				dest = rotate(source, Rotation.CW_90);
+				break;
+			case "Right side, bottom (Mirror horizontal and rotate 90 CW)":
+				rotate(rotate(source, Rotation.FLIP_HORZ), Rotation.CW_90);
+				break;
+			case "Left side, bottom (Rotate 270 CW)":
+				dest = rotate(source, Rotation.CW_270);
+				break;
+		}
+		return dest;
 	}
 
 	private ImageWriter getImageWriter(ImageFile src) {
