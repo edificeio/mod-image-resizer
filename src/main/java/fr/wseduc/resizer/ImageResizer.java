@@ -493,7 +493,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 		ImageWriter writer = getImageWriter(src);
 		ImageWriteParam param = writer.getDefaultWriteParam();
-		if (param.canWriteCompressed()) {
+		if (quality < 1f && param.canWriteCompressed()) {
 			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
 			if (JAI_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
 				param.setCompressionType("Deflate");
