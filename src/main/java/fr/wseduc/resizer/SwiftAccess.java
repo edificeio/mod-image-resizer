@@ -2,11 +2,10 @@ package fr.wseduc.resizer;
 
 import fr.wseduc.swift.SwiftClient;
 import fr.wseduc.swift.storage.StorageObject;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.Vertx;
-import org.vertx.java.core.buffer.Buffer;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 
 import java.net.URI;
 
@@ -18,7 +17,7 @@ public class SwiftAccess implements FileAccess {
 		client = new SwiftClient(vertx, uri);
 	}
 
-	public void init(String username, String password, AsyncResultHandler<Void> handler) {
+	public void init(String username, String password, Handler<AsyncResult<Void>> handler) {
 		client.authenticate(username, password, handler);
 	}
 
@@ -29,7 +28,7 @@ public class SwiftAccess implements FileAccess {
 			handler.handle(null);
 			return;
 		}
-		client.readFile(path[1], path[0], new AsyncResultHandler<StorageObject>() {
+		client.readFile(path[1], path[0], new Handler<AsyncResult<StorageObject>>() {
 			@Override
 			public void handle(AsyncResult<StorageObject> event) {
 				if (event.succeeded()) {
@@ -55,13 +54,13 @@ public class SwiftAccess implements FileAccess {
 		}
 		StorageObject o;
 		if (path.length == 2 && path[1] != null && !path[1].trim().isEmpty()) {
-			o = new StorageObject(path[1], new Buffer(img.getData()),
+			o = new StorageObject(path[1], Buffer.buffer(img.getData()),
 					img.getFilename(), img.getContentType());
 		} else {
-			o = new StorageObject(new Buffer(img.getData()),
+			o = new StorageObject(Buffer.buffer(img.getData()),
 					img.getFilename(), img.getContentType());
 		}
-		client.writeFile(o, path[0], new AsyncResultHandler<String>() {
+		client.writeFile(o, path[0], new Handler<AsyncResult<String>>() {
 			@Override
 			public void handle(AsyncResult<String> event) {
 				if (event.succeeded()) {

@@ -16,7 +16,7 @@
 
 package fr.wseduc.resizer;
 
-import org.vertx.java.core.Handler;
+import io.vertx.core.Handler;
 
 public interface FileAccess {
 

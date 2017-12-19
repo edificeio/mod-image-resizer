@@ -24,14 +24,13 @@ import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mongodb.ReadPreference;
 import org.imgscalr.Scalr;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import org.vertx.java.busmods.BusModBase;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Future;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -64,7 +63,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
 				config.getBoolean("fs-flat", false)));
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
-		JsonObject gridfs = config.getObject("gridfs");
+		JsonObject gridfs = config.getJsonObject("gridfs");
 		if (gridfs != null) {
 			String host = gridfs.getString("host", "localhost");
 			int port = gridfs.getInteger("port", 27017);
@@ -77,7 +76,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			boolean autoConnectRetry = gridfs.getBoolean("auto_connect_retry", true);
 			int socketTimeout = gridfs.getInteger("socket_timeout", 60000);
 			boolean useSSL = gridfs.getBoolean("use_ssl", false);
-			JsonArray seedsProperty = gridfs.getArray("seeds");
+			JsonArray seedsProperty = gridfs.getJsonArray("seeds");
 			if (dbName != null) {
 				try {
 					fileAccessProviders.put("gridfs",
@@ -88,7 +87,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		}
-		JsonObject swift = config.getObject("swift");
+		JsonObject swift = config.getJsonObject("swift");
 		if (swift != null) {
 			String uri = swift.getString("uri");
 			String username = swift.getString("user");
@@ -96,7 +95,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			if (uri != null && username != null && password != null) {
 				try {
 					final SwiftAccess swiftAccess = new SwiftAccess(vertx, new URI(uri));
-					swiftAccess.init(username, password, new AsyncResultHandler<Void>() {
+					swiftAccess.init(username, password, new Handler<AsyncResult<Void>>() {
 						@Override
 						public void handle(AsyncResult<Void> event) {
 							if (event.succeeded()) {
@@ -117,13 +116,13 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private void registerHandler(Future<Void> startedResult) {
-		eb.registerHandler(config.getString("address", "image.resizer"), this);
+		eb.consumer(config.getString("address", "image.resizer"), this);
 		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
-		startedResult.setResult(null);
+		startedResult.complete();
 	}
 
 	@Override
-	public void stop() {
+	public void stop() throws Exception {
 		super.stop();
 		for (FileAccess fa: fileAccessProviders.values()) {
 			fa.close();
@@ -151,7 +150,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private void compress(final Message<JsonObject> m) {
-		final Number quality = m.body().getNumber("quality");
+		final Number quality = m.body().getInteger("quality");
 		if (quality == null || quality.floatValue() > 1f || quality.floatValue() <= 0f) {
 			sendError(m, "Invalid quality.");
 			return;
@@ -187,8 +186,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		final Integer height = m.body().getInteger("height");
 		final Integer x = m.body().getInteger("x", 0);
 		final Integer y = m.body().getInteger("y", 0);
-		Number n = m.body().getNumber("quality");
-		final float quality = (n != null) ? n.floatValue() : 0.8f;
+		final float quality = m.body().getFloat("quality", 0.8f);
 		if (width == null || height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -228,8 +226,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
 		final boolean stretch = m.body().getBoolean("stretch", false);
-		Number n = m.body().getNumber("quality");
-		final float quality = (n != null) ? n.floatValue() : 0.8f;
+		final float quality = m.body().getFloat("quality", 0.8f);
 		if (width == null && height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -262,9 +259,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private void resizeMultiple(final Message<JsonObject> m) {
-		final JsonArray destinations = m.body().getArray("destinations");
-		Number n = m.body().getNumber("quality");
-		final float quality = (n != null) ? n.floatValue() : 0.8f;
+		final JsonArray destinations = m.body().getJsonArray("destinations");
+		final float quality = m.body().getFloat("quality", 0.8f);
 		if (destinations == null || destinations.size() == 0) {
 			sendError(m, "Invalid outputs files.");
 			return;
@@ -311,7 +307,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 							@Override
 							public void handle(String event) {
 								if (event != null && !event.trim().isEmpty()) {
-									results.putString(output.getInteger("width", 0) + "x" +
+									results.put(output.getInteger("width", 0) + "x" +
 											output.getInteger("height", 0), event);
 								}
 								checkReply(m, count, results);
@@ -326,7 +322,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			private void checkReply(Message<JsonObject> m, AtomicInteger count, JsonObject results) {
 				final int c = count.decrementAndGet();
 				if (c == 0 && results != null && results.size() > 0) {
-					sendOK(m,  new JsonObject().putObject("outputs", results));
+					sendOK(m,  new JsonObject().put("outputs", results));
 				} else if (c == 0) {
 					sendError(m, "Unable to resize image.");
 				}
@@ -387,7 +383,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			@Override
 			public void handle(String result) {
 				if (result != null && !result.trim().isEmpty()) {
-					sendOK(m, new JsonObject().putString("output", result).putNumber("size", size));
+					sendOK(m, new JsonObject().put("output", result).put("size", size));
 				} else {
 					sendError(m, "Error writing file.");
 				}

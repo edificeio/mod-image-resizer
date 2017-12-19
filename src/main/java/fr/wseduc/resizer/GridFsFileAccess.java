@@ -21,9 +21,9 @@ import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
 import com.mongodb.util.JSON;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
+import io.vertx.core.Handler;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.net.UnknownHostException;
@@ -130,7 +130,7 @@ public class GridFsFileAccess implements FileAccess {
 	}
 
 	private DBObject pathToDbObject(String s) {
-		String str = new JsonObject().putString("_id", s).encode();
+		String str = new JsonObject().put("_id", s).encode();
 		return (DBObject) JSON.parse(str);
 	}
 

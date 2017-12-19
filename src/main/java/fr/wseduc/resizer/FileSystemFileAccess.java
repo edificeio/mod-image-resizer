@@ -17,14 +17,13 @@
 package fr.wseduc.resizer;
 
 import fr.wseduc.swift.storage.DefaultAsyncResult;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.Vertx;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.file.FileSystem;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.java.core.logging.impl.LoggerFactory;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.file.FileSystem;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -94,11 +93,11 @@ public class FileSystemFileAccess implements FileAccess {
 			handler.handle(null);
 			return;
 		}
-		mkdirsIfNotExists(id, p, new AsyncResultHandler<Void>() {
+		mkdirsIfNotExists(id, p, new Handler<AsyncResult<Void>>() {
 			@Override
 			public void handle(AsyncResult<Void> event) {
 				if (event.succeeded()) {
-					fs.writeFile(p, new Buffer(img.getData()), new Handler<AsyncResult<Void>>() {
+					fs.writeFile(p, Buffer.buffer(img.getData()), new Handler<AsyncResult<Void>>() {
 						@Override
 						public void handle(AsyncResult<Void> ar) {
 							if (ar.succeeded()) {
@@ -149,14 +148,14 @@ public class FileSystemFileAccess implements FileAccess {
 		throw new FileNotFoundException("Invalid file : " + file);
 	}
 
-	private void mkdirsIfNotExists(String id, String path, final AsyncResultHandler<Void> h) {
+	private void mkdirsIfNotExists(String id, String path, final Handler<AsyncResult<Void>> h) {
 		final String dir = path.substring(0, path.length() - id.length());
 		fs.exists(dir, new Handler<AsyncResult<Boolean>>() {
 			@Override
 			public void handle(AsyncResult<Boolean> event) {
 				if (event.succeeded()) {
 					if (Boolean.FALSE.equals(event.result())) {
-						fs.mkdir(dir, true, new Handler<AsyncResult<Void>>() {
+						fs.mkdirs(dir, new Handler<AsyncResult<Void>>() {
 							@Override
 							public void handle(AsyncResult<Void> event) {
 								h.handle(event);

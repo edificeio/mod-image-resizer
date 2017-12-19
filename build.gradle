@@ -1,16 +1,69 @@
-apply from: "gradle/vertx.gradle"
+
+plugins {
+  id 'java'
+  id 'com.github.johnrengelman.shadow' version '2.0.1'
+}
+
+repositories {
+  mavenLocal()
+    maven {
+      url "http://maven.web-education.net/nexus/content/repositories/releases/"
+    }
+  mavenCentral()
+    maven {
+      url "https://oss.sonatype.org/content/repositories/iovertx-3720/"
+    }
+}
+
+configurations {
+  provided
+    runtime.exclude module: 'vertx-core'
+}
+
+sourceSets {
+  main { compileClasspath += configurations.provided }
+}
+
+configurations.all {
+  resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+compileJava {
+  sourceCompatibility = project.sourceCompatibility
+    targetCompatibility = project.targetCompatibility
+}
+
+compileTestJava {
+  sourceCompatibility = project.sourceCompatibility
+    targetCompatibility = project.targetCompatibility
+}
 
 dependencies {
-    compile "org.mongodb:mongo-java-driver:$mongoDbVersion"
-    compile "org.imgscalr:imgscalr-lib:$imgscalrVersion"
+  compileOnly "io.vertx:vertx-core:$vertxVersion"
+  compile "fr.wseduc:web-utils:$webutilsVersion"
+  compile "org.mongodb:mongo-java-driver:$mongoDbVersion"
+  compile "org.imgscalr:imgscalr-lib:$imgscalrVersion"
 	compile "fr.wseduc:vertx-swift-client:$swiftClientVersion"
 	compile "com.drewnoakes:metadata-extractor:$metadataExtractorVersion"
 }
 
-javadoc {
-  options.encoding = 'UTF-8'
-  classpath = configurations.provided
-  classpath += configurations.compile
+jar {
+  manifest {
+    attributes(
+        "Main-Verticle": "service:mod"
+        )
+  }
+}
+
+shadowJar {
+  classifier = 'fat'
+    archiveName = "org.entcore~${project.name}~$version-$classifier.$extension"
+    mergeServiceFiles {
+      include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
+    }
 }
 
 def configurePom(def pom) {
