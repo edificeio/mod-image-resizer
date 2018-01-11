@@ -1,6 +1,7 @@
 
 plugins {
   id 'java'
+  id 'maven-publish'
   id 'com.github.johnrengelman.shadow' version '2.0.1'
 }
 
@@ -60,45 +61,39 @@ jar {
 
 shadowJar {
   classifier = 'fat'
-    archiveName = "org.entcore~${project.name}~$version-$classifier.$extension"
+    archiveName = "${modowner}~${modname}~$version-$classifier.$extension"
     mergeServiceFiles {
       include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
     }
 }
 
-def configurePom(def pom) {
-	pom.project {
-    name 'mod-image-resizer'
-		description 'Image resizer BusMod for Vert.x'
-		inceptionYear '2013'
-		packaging 'zip'
-		url 'https://github.com/web-education/mod-image-resizer'
-
-		developers {
-			developer {
-				id 'dboissin'
-				name 'Damien BOISSIN'
-				email 'damien.boissin@web-education.net'
-			}
-		}
-
-		scm {
-      connection 'scm:git:ssh://git@github.com:web-education/mod-image-resizer.git'
-      developerConnection 'scm:git:ssh://git@github.com:web-education/mod-image-resizer.git'
-      url 'https://github.com/web-education/mod-image-resizer.git'
-		}
-
-		licenses {
-			license {
-				name 'The Apache Software License, Version 2.0'
-				url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-				distribution 'repo'
-			}
-		}
-
-		properties {
-			setProperty('project.build.sourceEncoding', 'UTF8')
-		}
-	}
+publishing {
+  repositories {
+    if (version.endsWith("SNAPSHOT")) {
+      maven {
+        name 'Snapshots'
+          url 'https://maven.opendigitaleducation.com/nexus/content/repositories/snapshots/'
+          credentials {
+            username "${odeUsername}"
+              password "${odePassword}"
+          }
+      }
+    } else {
+      maven {
+        name 'Releases'
+          url 'https://maven.opendigitaleducation.com/nexus/content/repositories/releases/'
+          credentials {
+            username "${odeUsername}"
+              password "${odePassword}"
+          }
+      }
+    }
+  }
+  publications {
+    maven(MavenPublication) {
+      groupId "${modowner}"
+      artifact("build/libs/${modowner}~${modname}~$version-fat.jar") { classifier "fat" }
+    }
+  }
 }
 
