@@ -48,6 +48,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static fr.wseduc.webutils.Utils.getOrElse;
 import static org.imgscalr.Scalr.*;
 
 
@@ -184,9 +185,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private void crop(final Message<JsonObject> m) {
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
-		final Integer x = m.body().getInteger("x", 0);
-		final Integer y = m.body().getInteger("y", 0);
-		final float quality = m.body().getFloat("quality", 0.8f);
+		final Integer x = getOrElse(m.body().getInteger("x"), 0);
+		final Integer y = getOrElse(m.body().getInteger("y"), 0);
+		final float quality = getOrElse(m.body().getFloat("quality"), 0.8f);
 		if (width == null || height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -225,8 +226,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private void resize(final Message<JsonObject> m) {
 		final Integer width = m.body().getInteger("width");
 		final Integer height = m.body().getInteger("height");
-		final boolean stretch = m.body().getBoolean("stretch", false);
-		final float quality = m.body().getFloat("quality", 0.8f);
+		final boolean stretch = getOrElse(m.body().getBoolean("stretch"), false);
+		final float quality = getOrElse(m.body().getFloat("quality"), 0.8f);
 		if (width == null && height == null) {
 			sendError(m, "Invalid size.");
 			return;
@@ -260,7 +261,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void resizeMultiple(final Message<JsonObject> m) {
 		final JsonArray destinations = m.body().getJsonArray("destinations");
-		final float quality = m.body().getFloat("quality", 0.8f);
+		final float quality = getOrElse(m.body().getFloat("quality"), 0.8f);
 		if (destinations == null || destinations.size() == 0) {
 			sendError(m, "Invalid outputs files.");
 			return;
