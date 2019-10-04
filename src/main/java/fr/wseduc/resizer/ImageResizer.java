@@ -151,7 +151,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	}
 
 	private void compress(final Message<JsonObject> m) {
-		final Number quality = m.body().getInteger("quality");
+		final Number quality = m.body().getFloat("quality");
 		if (quality == null || quality.floatValue() > 1f || quality.floatValue() <= 0f) {
 			sendError(m, "Invalid quality.");
 			return;
