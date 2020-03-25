@@ -249,8 +249,16 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 				try {
 					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					BufferedImage resized = doResize(width, height, stretch, srcImg);
-					persistImage(src, srcImg, resized, fDest, quality, m);
+					if(srcImg != null)
+					{
+						BufferedImage resized = doResize(width, height, stretch, srcImg);
+						persistImage(src, srcImg, resized, fDest, quality, m);
+					}
+					else
+					{
+						logger.error("Unsupported image type for: " + m.body().getString("src"));
+						sendError(m, "Unsupported image type");
+					}
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
 					sendError(m, "Error processing image.", e);
@@ -282,6 +290,12 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				BufferedImage srcImg;
 				try {
 					srcImg = ImageIO.read(src.getInputStream());
+					if(srcImg == null)
+					{
+						logger.error("Unsupported image type for: " + m.body().getString("src"));
+						sendError(m, "Unsupported image type");
+						return;
+					}
 				} catch (IOException e) {
 					logger.error("Error processing image.", e);
 					sendError(m, "Error processing image.", e);
