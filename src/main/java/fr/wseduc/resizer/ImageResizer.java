@@ -347,6 +347,11 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private BufferedImage doResize(Integer width, Integer height, boolean stretch,
 			BufferedImage srcImg) {
+		// Sanity checks
+		if( width != null  && width.intValue() <= 0 )  return srcImg;
+		if( height != null && height.intValue() <= 0 ) return srcImg;
+
+		// Computations
 		BufferedImage resized = null;
 		if (width != null && height != null && !stretch &&
 				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
@@ -371,10 +376,24 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		} else if (width != null && (allowImageEnlargement || width < srcImg.getWidth())) {
 			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_WIDTH, width);
+		} else if( width != null && height != null && !allowImageEnlargement && width >= srcImg.getWidth() && height >= srcImg.getHeight()) {
+			// If both dimensions are specified and enlargement is not allowed,
+			// and the "resized" image is bigger than the source - and thus was not really resized -,
+			// then this "resized" image should at least respect the width/height ratio. 
+			float ratio = width / (float)height;
+			float srcRatio = srcImg.getWidth() / (float)srcImg.getHeight();
+			if( ratio > srcRatio ) {
+				int newHeight = (srcImg.getWidth()*height) / width; // = srcWidth / ratio
+				resized = Scalr.crop(srcImg, 0, (srcImg.getHeight()-newHeight)>>1, srcImg.getWidth(), newHeight);
+			} else if( ratio < srcRatio ) {
+				int newWidth = (srcImg.getHeight()*width) / height; // = srcHeight * ratio
+				resized = Scalr.crop(srcImg, (srcImg.getWidth()-newWidth)>>1, 0, newWidth, srcImg.getHeight());
+			}
 		}
 		if (resized == null) {
 			resized = srcImg;
 		}
+		
 		return resized;
 	}
 
