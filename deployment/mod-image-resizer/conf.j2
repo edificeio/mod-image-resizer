@@ -1,0 +1,20 @@
+{
+    "name": "{{ modImageResizerVersion }}",
+    "priority": 3,
+    "waitDeploy" : true,
+    "worker": true,
+    "multi-threaded": true,
+    "config": {
+        "address": "wse.image.resizer",
+        {% if gridfs is defined and gridfs %}
+        "gridfs": {
+            "address": "wse.gridfs.persistor",
+            "host": "{{ ipMongodb }}",
+            "port": 27017,
+            "db_name": "{{ dbName }}",
+            "pool_size": 10
+        },
+        {% endif %}
+        "fs-flat": false
+    }
+}
