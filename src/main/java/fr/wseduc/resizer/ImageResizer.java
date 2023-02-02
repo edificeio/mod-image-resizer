@@ -330,6 +330,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 						});
 					} catch (IOException e) {
 						logger.error("Error processing image.", e);
+						checkReply(m, count, results);
 					}
 				}
 			}
