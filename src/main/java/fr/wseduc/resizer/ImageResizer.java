@@ -23,13 +23,13 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mongodb.ReadPreference;
-import org.imgscalr.Scalr;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 
 import javax.imageio.IIOImage;
@@ -59,7 +59,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private boolean allowImageEnlargement = false;
 
 	@Override
-	public void start(final Future<Void> startedResult) {
+	public void start(final Promise<Void> startedResult) {
 		super.start();
 		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
 				config.getBoolean("fs-flat", false)));
@@ -116,7 +116,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		}
 	}
 
-	private void registerHandler(Future<Void> startedResult) {
+	private void registerHandler(Promise<Void> startedResult) {
 		eb.consumer(config.getString("address", "image.resizer"), this);
 		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
 		startedResult.complete();
