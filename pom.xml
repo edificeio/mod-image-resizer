@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>fr.wseduc</groupId>
     <artifactId>mod-image-resizer</artifactId>
-    <version>2.1-SNAPSHOT</version><!-- Vient de gradle.properties > version -->
+    <version>2.1-SNAPSHOT</version>
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -18,7 +18,7 @@
         <swiftClientVersion>1.0.0</swiftClientVersion>
         <metadataExtractorVersion>2.10.1</metadataExtractorVersion>
     </properties>
-    <scm><!-- À ajuster en fonction de l'url GitHub/GitLab -->
+    <scm>
         <connection>scm:git:https://github.com/opendigitaleducation/mod-image-resizer.git</connection>
         <developerConnection>scm:git:https://github.com/opendigitaleducation/mod-image-resizer.git</developerConnection>
         <url>https://github.com/opendigitaleducation/mod-image-resizer</url>
@@ -82,8 +82,6 @@
             <artifactId>metadata-extractor</artifactId>
             <version>${metadataExtractorVersion}</version>
         </dependency>
-
-        <!-- Ajouter les autres dépendances qui étaient dans build.gradle > dependencies -->
     </dependencies>
     <build>
         <plugins>
