@@ -23,13 +23,13 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mongodb.ReadPreference;
-import org.imgscalr.Scalr;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 
 import javax.imageio.IIOImage;
@@ -59,64 +59,16 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private boolean allowImageEnlargement = false;
 
 	@Override
-	public void start(final Future<Void> startedResult) {
+	public void start(final Promise<Void> startedResult) {
 		super.start();
 		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
 				config.getBoolean("fs-flat", false)));
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
-		JsonObject gridfs = config.getJsonObject("gridfs");
-		if (gridfs != null) {
-			String host = gridfs.getString("host", "localhost");
-			int port = gridfs.getInteger("port", 27017);
-			String dbName = gridfs.getString("db_name");
-			String username = gridfs.getString("username");
-			String password = gridfs.getString("password");
-			ReadPreference readPreference = ReadPreference.valueOf(
-					gridfs.getString("read_preference", "primary"));
-			int poolSize = gridfs.getInteger("pool_size", 10);
-			boolean autoConnectRetry = gridfs.getBoolean("auto_connect_retry", true);
-			int socketTimeout = gridfs.getInteger("socket_timeout", 60000);
-			boolean useSSL = gridfs.getBoolean("use_ssl", false);
-			JsonArray seedsProperty = gridfs.getJsonArray("seeds");
-			if (dbName != null) {
-				try {
-					fileAccessProviders.put("gridfs",
-						new GridFsFileAccess(host, port, dbName, username, password, poolSize,
-								readPreference, autoConnectRetry, socketTimeout, useSSL, seedsProperty));
-				} catch (UnknownHostException e) {
-					logger.error("Invalid mongoDb configuration.", e);
-				}
-			}
-		}
-		JsonObject swift = config.getJsonObject("swift");
-		if (swift != null) {
-			String uri = swift.getString("uri");
-			String username = swift.getString("user");
-			String password = swift.getString("key");
-			if (uri != null && username != null && password != null) {
-				try {
-					final SwiftAccess swiftAccess = new SwiftAccess(vertx, new URI(uri));
-					swiftAccess.init(username, password, new Handler<AsyncResult<Void>>() {
-						@Override
-						public void handle(AsyncResult<Void> event) {
-							if (event.succeeded()) {
-								fileAccessProviders.put("swift", swiftAccess);
-							} else {
-								logger.error("Swift authentication error", event.cause());
-							}
-							registerHandler(startedResult);
-						}
-					});
-				} catch (URISyntaxException e) {
-					logger.error("Invalid swift uri.", e);
-				}
-			}
-		} else {
-			registerHandler(startedResult);
-		}
+		registerHandler(startedResult);
+
 	}
 
-	private void registerHandler(Future<Void> startedResult) {
+	private void registerHandler(Promise<Void> startedResult) {
 		eb.consumer(config.getString("address", "image.resizer"), this);
 		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
 		startedResult.complete();
