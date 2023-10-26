@@ -25,10 +25,6 @@ test () {
   docker-compose run --rm maven mvn $MVN_OPTS test
 }
 
-buildGradle () {
-  docker-compose run --rm maven mvn $MVN_OPTS shadowJar install publishToMavenLocal
-}
-
 publish() {
   version=`docker-compose run --rm maven mvn $MVN_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout`
   level=`echo $version | cut -d'-' -f3`
