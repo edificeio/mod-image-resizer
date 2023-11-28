@@ -65,11 +65,6 @@
             <version>${imgscalrVersion}</version>
         </dependency>
         <dependency>
-            <groupId>fr.wseduc</groupId>
-            <artifactId>vertx-swift-client</artifactId>
-            <version>${swiftClientVersion}</version>
-        </dependency>
-        <dependency>
             <groupId>com.drewnoakes</groupId>
             <artifactId>metadata-extractor</artifactId>
             <version>${metadataExtractorVersion}</version>
