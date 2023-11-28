@@ -16,7 +16,7 @@
 
 package fr.wseduc.resizer;
 
-import fr.wseduc.swift.storage.DefaultAsyncResult;
+import fr.wseduc.webutils.DefaultAsyncResult;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -165,7 +165,7 @@ public class FileSystemFileAccess implements FileAccess {
 						h.handle(new DefaultAsyncResult<>((Void) null));
 					}
 				} else {
-					h.handle(new DefaultAsyncResult<Void>(event.cause()));
+					h.handle(new DefaultAsyncResult<>(event.cause()));
 				}
 			}
 		});

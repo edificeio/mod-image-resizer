@@ -88,32 +88,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		}
-		JsonObject swift = config.getJsonObject("swift");
-		if (swift != null) {
-			String uri = swift.getString("uri");
-			String username = swift.getString("user");
-			String password = swift.getString("key");
-			if (uri != null && username != null && password != null) {
-				try {
-					final SwiftAccess swiftAccess = new SwiftAccess(vertx, new URI(uri));
-					swiftAccess.init(username, password, new Handler<AsyncResult<Void>>() {
-						@Override
-						public void handle(AsyncResult<Void> event) {
-							if (event.succeeded()) {
-								fileAccessProviders.put("swift", swiftAccess);
-							} else {
-								logger.error("Swift authentication error", event.cause());
-							}
-							registerHandler(startedResult);
-						}
-					});
-				} catch (URISyntaxException e) {
-					logger.error("Invalid swift uri.", e);
-				}
-			}
-		} else {
-			registerHandler(startedResult);
-		}
+		registerHandler(startedResult);
+
 	}
 
 	private void registerHandler(Promise<Void> startedResult) {
