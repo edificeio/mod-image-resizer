@@ -64,6 +64,21 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
 				config.getBoolean("fs-flat", false)));
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
+		JsonObject s3 = config.getJsonObject("s3");
+		if (s3 != null) {
+			String uri = s3.getString("uri");
+			String accessKey = s3.getString("accessKey");
+			String secretKey = s3.getString("secretKey");
+			String region = s3.getString("region");
+			String bucket = s3.getString("bucket");
+			if (uri != null && accessKey != null && secretKey != null && region != null && bucket != null) {
+				try {
+					final S3Access s3Access = new S3Access(vertx, new URI(uri), accessKey, secretKey, region, bucket);
+				} catch (URISyntaxException e) {
+					logger.error("Invalid s3 uri.", e);
+				}
+			}
+		}
 		JsonObject gridfs = config.getJsonObject("gridfs");
 		if (gridfs != null) {
 			String host = gridfs.getString("host", "localhost");
