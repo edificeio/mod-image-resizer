@@ -55,6 +55,7 @@ compileTestJava {
 
 dependencies {
   compileOnly "io.vertx:vertx-core:$vertxVersion"
+  compile "org.entcore:common:$entCoreVersion"
   compile "fr.wseduc:web-utils:$webutilsVersion"
   compile "org.mongodb:mongo-java-driver:$mongoDbVersion"
   compile "org.imgscalr:imgscalr-lib:$imgscalrVersion"
