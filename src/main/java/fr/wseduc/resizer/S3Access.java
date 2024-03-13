@@ -1,7 +1,7 @@
 package fr.wseduc.resizer;
 
-import fr.wseduc.s3.S3Client;
-import fr.wseduc.s3.storage.StorageObject;
+import org.entcore.common.s3.S3Client;
+import org.entcore.common.s3.storage.StorageObject;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
