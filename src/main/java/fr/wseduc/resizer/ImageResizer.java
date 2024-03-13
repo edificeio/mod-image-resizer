@@ -79,30 +79,30 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		}
-		JsonObject gridfs = config.getJsonObject("gridfs");
-		if (gridfs != null) {
-			String host = gridfs.getString("host", "localhost");
-			int port = gridfs.getInteger("port", 27017);
-			String dbName = gridfs.getString("db_name");
-			String username = gridfs.getString("username");
-			String password = gridfs.getString("password");
-			ReadPreference readPreference = ReadPreference.valueOf(
-					gridfs.getString("read_preference", "primary"));
-			int poolSize = gridfs.getInteger("pool_size", 10);
-			boolean autoConnectRetry = gridfs.getBoolean("auto_connect_retry", true);
-			int socketTimeout = gridfs.getInteger("socket_timeout", 60000);
-			boolean useSSL = gridfs.getBoolean("use_ssl", false);
-			JsonArray seedsProperty = gridfs.getJsonArray("seeds");
-			if (dbName != null) {
-				try {
-					fileAccessProviders.put("gridfs",
-						new GridFsFileAccess(host, port, dbName, username, password, poolSize,
-								readPreference, autoConnectRetry, socketTimeout, useSSL, seedsProperty));
-				} catch (UnknownHostException e) {
-					logger.error("Invalid mongoDb configuration.", e);
-				}
-			}
-		}
+		// JsonObject gridfs = config.getJsonObject("gridfs");
+		// if (gridfs != null) {
+		// 	String host = gridfs.getString("host", "localhost");
+		// 	int port = gridfs.getInteger("port", 27017);
+		// 	String dbName = gridfs.getString("db_name");
+		// 	String username = gridfs.getString("username");
+		// 	String password = gridfs.getString("password");
+		// 	ReadPreference readPreference = ReadPreference.valueOf(
+		// 			gridfs.getString("read_preference", "primary"));
+		// 	int poolSize = gridfs.getInteger("pool_size", 10);
+		// 	boolean autoConnectRetry = gridfs.getBoolean("auto_connect_retry", true);
+		// 	int socketTimeout = gridfs.getInteger("socket_timeout", 60000);
+		// 	boolean useSSL = gridfs.getBoolean("use_ssl", false);
+		// 	JsonArray seedsProperty = gridfs.getJsonArray("seeds");
+		// 	if (dbName != null) {
+		// 		try {
+		// 			fileAccessProviders.put("gridfs",
+		// 				new GridFsFileAccess(host, port, dbName, username, password, poolSize,
+		// 						readPreference, autoConnectRetry, socketTimeout, useSSL, seedsProperty));
+		// 		} catch (UnknownHostException e) {
+		// 			logger.error("Invalid mongoDb configuration.", e);
+		// 		}
+		// 	}
+		// }
 		JsonObject swift = config.getJsonObject("swift");
 		if (swift != null) {
 			String uri = swift.getString("uri");
