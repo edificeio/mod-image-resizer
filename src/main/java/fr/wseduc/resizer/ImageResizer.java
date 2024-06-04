@@ -23,7 +23,13 @@ import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mongodb.ReadPreference;
+
+import fr.wseduc.resizer.metrics.ImageResizerMetricsRecorder;
+import fr.wseduc.resizer.metrics.ImageResizerMetricsRecorderFactory;
+import fr.wseduc.resizer.metrics.ImageResizerMetricsRecorder.ImageResizerAction;
+
 import org.imgscalr.Scalr;
+
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -57,6 +63,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
+	private ImageResizerMetricsRecorder metricsRecorder;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
@@ -114,6 +121,8 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		} else {
 			registerHandler(startedResult);
 		}
+		ImageResizerMetricsRecorderFactory.init(vertx, config);
+		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance();
 	}
 
 	private void registerHandler(Future<Void> startedResult) {
@@ -132,21 +141,35 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		switch(m.body().getString("action", "")) {
-			case "resize" :
-				resize(m);
-				break;
-			case "crop" :
-				crop(m);
-				break;
-			case "resizeMultiple" :
-				resizeMultiple(m);
-				break;
-			case "compress" :
-				compress(m);
-				break;
-			default :
-				sendError(m, "Invalid or missing action");
+		String action = "";
+		ImageResizerAction imageResizerAction = ImageResizerAction.unknown;
+		final long start = System.currentTimeMillis();
+		try {
+			action = m.body().getString("action", "");
+			imageResizerAction = ImageResizerAction.fromString(action);
+			metricsRecorder.onActionStart(imageResizerAction);
+			switch(action) {
+				case "resize" :
+					resize(m);
+					break;
+				case "crop" :
+					crop(m);
+					break;
+				case "resizeMultiple" :
+					resizeMultiple(m);
+					break;
+				case "compress" :
+					compress(m);
+					break;
+				default :
+					sendError(m, "Invalid or missing action");
+			}
+		} catch(Exception e) {
+			sendError(m, "Unknown error while processing action");
+			logger.error("An unknown error occurred while processing the following action : " + m.body().encode(), e);
+			metricsRecorder.onError(imageResizerAction);
+		} finally {
+			metricsRecorder.onActionEnd(imageResizerAction, System.currentTimeMillis() - start);
 		}
 	}
 
