@@ -132,9 +132,13 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			registerHandler(startedResult);
 		}
 		nbMaxProcessingMessages = config.getInteger("max-processing-messages", 10);
+		logger.info("Max messages is " + nbMaxProcessingMessages);
 		this.semaphore = new Semaphore(1);
 		ImageResizerMetricsRecorderFactory.init(vertx, config);
-		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance(nbMaxProcessingMessages, () -> nbProcessingMessages, () -> pendingMessages.size());
+		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance(nbMaxProcessingMessages, () -> {
+			logger.info("Calling gaugin on processing messages");
+			return nbProcessingMessages;
+		}, () -> pendingMessages.size());
 	}
 
 	private void registerHandler(Future<Void> startedResult) {
@@ -153,13 +157,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		try {
-			semaphore.acquire();
-			pendingMessages.offer(m);
-			semaphore.release();
-		} catch (InterruptedException e) {
-			logger.error("An error occurred wihle trying to acquire a lock on pending messages to push a new action", e);
-		}
+		pendingMessages.offer(m);
 		treatMessage();
 	}
 
@@ -183,6 +181,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		logger.debug("Treating a new message");
 		final Message<JsonObject> m = pendingMessages.poll();
 		nbProcessingMessages++;
+		logger.info("Nb processing messages is now " + nbProcessingMessages);
 		semaphore.release();
 		String action = "";
 		ImageResizerAction imageResizerAction = ImageResizerAction.unknown;
