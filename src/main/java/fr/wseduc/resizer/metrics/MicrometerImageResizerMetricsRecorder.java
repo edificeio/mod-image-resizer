@@ -49,10 +49,10 @@ public class MicrometerImageResizerMetricsRecorder implements ImageResizerMetric
                             .tag("action", action)
                             .register(registry));
         }
-        Gauge.builder("image.resizer.concurrent.actions", nbCurrentTasks)
+        Gauge.builder("image.resizer.concurrent.actions.number", nbCurrentTasks)
         .description("Number of concurrent actions")
         .register(registry);
-        Gauge.builder("image.resizer.pending.actions", nbCurrentTasks)
+        Gauge.builder("image.resizer.pending.actions.number", nbPendingTasks)
         .description("Number of pending actions")
         .register(registry);
     }

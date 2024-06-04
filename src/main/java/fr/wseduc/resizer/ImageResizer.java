@@ -29,6 +29,9 @@ import fr.wseduc.resizer.metrics.ImageResizerMetricsRecorderFactory;
 import fr.wseduc.resizer.metrics.ImageResizerMetricsRecorder.ImageResizerAction;
 
 import org.imgscalr.Scalr;
+import org.imgscalr.Scalr.Method;
+import org.imgscalr.Scalr.Mode;
+import org.imgscalr.Scalr.Rotation;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -49,11 +52,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.wseduc.webutils.Utils.getOrElse;
@@ -67,9 +70,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private boolean allowImageEnlargement = false;
 	private ImageResizerMetricsRecorder metricsRecorder;
 
-	private int nbProcessingMessages = 0;
+	private volatile int nbProcessingMessages = 0;
 	private int nbMaxProcessingMessages = 10;
-	private final List<Message<JsonObject>> pendingMessages = new ArrayList<>();
+	private final ConcurrentLinkedQueue<Message<JsonObject>> pendingMessages = new ConcurrentLinkedQueue<>();
+	private Semaphore semaphore;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
@@ -128,6 +132,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			registerHandler(startedResult);
 		}
 		nbMaxProcessingMessages = config.getInteger("max-processing-messages", 10);
+		this.semaphore = new Semaphore(1);
 		ImageResizerMetricsRecorderFactory.init(vertx, config);
 		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance(nbMaxProcessingMessages, () -> nbProcessingMessages, () -> pendingMessages.size());
 	}
@@ -148,22 +153,37 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		pendingMessages.add(m);
+		try {
+			semaphore.acquire();
+			pendingMessages.offer(m);
+			semaphore.release();
+		} catch (InterruptedException e) {
+			logger.error("An error occurred wihle trying to acquire a lock on pending messages to push a new action", e);
+		}
 		treatMessage();
 	}
 
 	public void treatMessage() {
+		try {
+			semaphore.acquire();
+		} catch(InterruptedException e) {
+			logger.error("An error occurred wihle trying to acquire a lock on pending messages to treat", e);
+			return;
+		}
 		if(pendingMessages.isEmpty()) {
 			logger.debug("No pending messages to treat");
+			semaphore.release();
 			return;
 		}
 		if(nbProcessingMessages >= nbMaxProcessingMessages) {
 			logger.info("Too many messages being treated");
+			semaphore.release();
 			return;
 		}
 		logger.debug("Treating a new message");
-		final Message<JsonObject> m = pendingMessages.remove(0);
+		final Message<JsonObject> m = pendingMessages.poll();
 		nbProcessingMessages++;
+		semaphore.release();
 		String action = "";
 		ImageResizerAction imageResizerAction = ImageResizerAction.unknown;
 		final long start = System.currentTimeMillis();
@@ -191,7 +211,14 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			logger.error("An unknown error occurred while processing the following action : " + m.body().encode(), e);
 			metricsRecorder.onError(imageResizerAction);
 		} finally {
-			nbProcessingMessages --;
+			try {
+				semaphore.acquire();
+				nbProcessingMessages --;
+				semaphore.release();
+			} catch(InterruptedException e) {
+				logger.error("An error occurred wihle trying to acquire a lock to decrement the number of messages being processed", e);
+				return;
+			}
 			metricsRecorder.onActionEnd(imageResizerAction, System.currentTimeMillis() - start);
 			treatMessage();
 		}
