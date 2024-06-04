@@ -49,8 +49,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -64,6 +66,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
 	private ImageResizerMetricsRecorder metricsRecorder;
+
+	private int nbProcessingMessages = 0;
+	private int nbMaxProcessingMessages = 10;
+	private final List<Message<JsonObject>> pendingMessages = new ArrayList<>();
 
 	@Override
 	public void start(final Future<Void> startedResult) {
@@ -121,8 +127,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		} else {
 			registerHandler(startedResult);
 		}
+		nbMaxProcessingMessages = config.getInteger("max-processing-messages", 10);
 		ImageResizerMetricsRecorderFactory.init(vertx, config);
-		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance();
+		metricsRecorder = ImageResizerMetricsRecorderFactory.getInstance(nbMaxProcessingMessages, () -> nbProcessingMessages, () -> pendingMessages.size());
 	}
 
 	private void registerHandler(Future<Void> startedResult) {
@@ -141,13 +148,27 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
+		pendingMessages.add(m);
+		treatMessage();
+	}
+
+	public void treatMessage() {
+		if(pendingMessages.isEmpty()) {
+			logger.debug("No pending messages to treat");
+		}
+		if(nbProcessingMessages >= nbMaxProcessingMessages) {
+			logger.info("Too many messages being treated");
+			return;
+		}
+		logger.debug("Treating a new message");
+		final Message<JsonObject> m = pendingMessages.remove(0);
+		nbProcessingMessages++;
 		String action = "";
 		ImageResizerAction imageResizerAction = ImageResizerAction.unknown;
 		final long start = System.currentTimeMillis();
 		try {
 			action = m.body().getString("action", "");
 			imageResizerAction = ImageResizerAction.fromString(action);
-			metricsRecorder.onActionStart(imageResizerAction);
 			switch(action) {
 				case "resize" :
 					resize(m);
@@ -169,7 +190,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			logger.error("An unknown error occurred while processing the following action : " + m.body().encode(), e);
 			metricsRecorder.onError(imageResizerAction);
 		} finally {
+			nbProcessingMessages --;
 			metricsRecorder.onActionEnd(imageResizerAction, System.currentTimeMillis() - start);
+			treatMessage();
 		}
 	}
 

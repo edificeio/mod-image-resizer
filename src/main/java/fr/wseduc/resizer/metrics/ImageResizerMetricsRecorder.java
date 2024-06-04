@@ -4,7 +4,6 @@ import static fr.wseduc.webutils.Utils.isEmpty;
 
 public interface ImageResizerMetricsRecorder {
     void onError(final ImageResizerAction action);
-    void onActionStart(final ImageResizerAction action);
     void onActionEnd(final ImageResizerAction action, final long duration);
 
     public enum ImageResizerAction {
@@ -33,11 +32,6 @@ public interface ImageResizerMetricsRecorder {
 
         @Override
         public void onError(ImageResizerAction action) {
-            // Do nothing in this implementation
-        }
-
-        @Override
-        public void onActionStart(final ImageResizerAction action) {
             // Do nothing in this implementation
         }
 

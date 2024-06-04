@@ -1,5 +1,7 @@
 package fr.wseduc.resizer.metrics;
 
+import java.util.function.Supplier;
+
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.metrics.MetricsOptions;
@@ -30,13 +32,17 @@ public class ImageResizerMetricsRecorderFactory {
      * @return The backend to record metrics. If metricsOptions is defined in the configuration then the backend used
      * is MicroMeter. Otherwise a dummy registrar is returned and it collects nothing.
      */
-    public static ImageResizerMetricsRecorder getInstance() {
+    public static ImageResizerMetricsRecorder getInstance(final int maxConcurrentTasks, final Supplier<Number> nbCurrentTasks, final Supplier<Number> nbPendingTasks) {
         if(metricsRecorder == null) {
             if(metricsOptions == null) {
                 throw new IllegalStateException("sms.metricsrecorder.factory.not.set");
             }
             if(metricsOptions.isEnabled()) {
-                metricsRecorder = new MicrometerImageResizerMetricsRecorder(MicrometerImageResizerMetricsRecorder.Configuration.fromJson(config));
+                metricsRecorder = new MicrometerImageResizerMetricsRecorder(
+                    MicrometerImageResizerMetricsRecorder.Configuration.fromJson(config),
+                    nbCurrentTasks,
+                    nbPendingTasks,
+                    maxConcurrentTasks);
             } else {
                 metricsRecorder = new ImageResizerMetricsRecorder.NoopImageResizerMetricsRecorder();
             }

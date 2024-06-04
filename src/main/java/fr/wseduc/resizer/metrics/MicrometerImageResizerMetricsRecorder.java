@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import io.micrometer.core.instrument.Counter;
@@ -20,16 +21,17 @@ import io.vertx.micrometer.backends.BackendRegistries;
 public class MicrometerImageResizerMetricsRecorder implements ImageResizerMetricsRecorder {
     private final Map<ImageResizerAction, Timer> timers;
     private final Map<ImageResizerAction, Counter> errorCounters;
-    private final Map<ImageResizerAction, AtomicInteger> parallelActions;
 
-    public MicrometerImageResizerMetricsRecorder(final Configuration configuration) {
+    public MicrometerImageResizerMetricsRecorder(final Configuration configuration, 
+                                                 final Supplier<Number> nbCurrentTasks,
+                                                 final Supplier<Number> nbPendingTasks,
+                                                 final int maxConcurrentTasks) {
         final MeterRegistry registry = BackendRegistries.getDefaultNow();
         if(registry == null) {
             throw new IllegalStateException("micrometer.registries.empty");
         }
         timers = new HashMap<>();
         errorCounters = new HashMap<>();
-        parallelActions = new HashMap<>();
         for (final ImageResizerAction value : ImageResizerAction.values()) {
             final String action = value.name();
             final Timer.Builder builder = Timer.builder("image.resizer.process.time")
@@ -46,31 +48,23 @@ public class MicrometerImageResizerMetricsRecorder implements ImageResizerMetric
                             .description("number of errors while processing " + action)
                             .tag("action", action)
                             .register(registry));
-            parallelActions.put(value, new AtomicInteger(0));
-            Gauge.builder("image.resizer.concurrent.actions", () -> parallelActions.get(value))
-            .tag("action", action)
-            .description("Number of concurrent actions " + action)
-            .register(registry);
         }
+        Gauge.builder("image.resizer.concurrent.actions", nbCurrentTasks)
+        .description("Number of concurrent actions")
+        .register(registry);
+        Gauge.builder("image.resizer.pending.actions", nbCurrentTasks)
+        .description("Number of pending actions")
+        .register(registry);
     }
 
     @Override
     public void onActionEnd(ImageResizerAction action, long duration) {
         timers.get(action).record(duration, TimeUnit.MILLISECONDS);
-        final int nbParallelAction = parallelActions.get(action).decrementAndGet();
-        if(nbParallelAction < 0) {
-            parallelActions.get(action).set(0);
-        }
     }
 
     @Override
     public void onError(ImageResizerAction action) {
         errorCounters.get(action).increment();
-    }
-
-    @Override
-    public void onActionStart(ImageResizerAction action) {
-        parallelActions.get(action).incrementAndGet();
     }
 
     public static class Configuration {
