@@ -155,6 +155,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	public void treatMessage() {
 		if(pendingMessages.isEmpty()) {
 			logger.debug("No pending messages to treat");
+			return;
 		}
 		if(nbProcessingMessages >= nbMaxProcessingMessages) {
 			logger.info("Too many messages being treated");
