@@ -32,7 +32,7 @@ public class MicrometerImageResizerMetricsRecorder implements ImageResizerMetric
         parallelActions = new HashMap<>();
         for (final ImageResizerAction value : ImageResizerAction.values()) {
             final String action = value.name();
-            final Timer.Builder builder = Timer.builder("image.resizer." + action + ".process.time")
+            final Timer.Builder builder = Timer.builder("image.resizer.process.time")
                 .tag("action", action)
                 .description("time to execute the action " + action);
             if(configuration.sla.isEmpty()) {
@@ -42,7 +42,7 @@ public class MicrometerImageResizerMetricsRecorder implements ImageResizerMetric
                 builder.sla(configuration.sla.toArray(new Duration[0]));
             }
             timers.put(value, builder.register(registry));
-            errorCounters.put(value, Counter.builder("image.resizer." + action + ".error")
+            errorCounters.put(value, Counter.builder("image.resizer.error")
                             .description("number of errors while processing " + action)
                             .tag("action", action)
                             .register(registry));
