@@ -22,13 +22,13 @@ import com.drew.metadata.Directory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
-import com.mongodb.ReadPreference;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 
@@ -40,9 +40,6 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -53,7 +50,7 @@ import static org.imgscalr.Scalr.*;
 
 
 public class ImageResizer extends BusModBase implements Handler<Message<JsonObject>> {
-
+	protected static final Logger logger = LoggerFactory.getLogger(ImageResizer.class);
 	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
@@ -120,7 +117,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			@Override
 			public void handle(ImageFile src) {
 				if (src == null) {
-					sendError(m, "Input file not found.");
+					sendError(m, "Input file not found : " + m.body().getString("src"));
 					return;
 				}
 				try {
