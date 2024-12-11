@@ -24,6 +24,7 @@ import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -81,22 +82,25 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		switch(m.body().getString("action", "")) {
-			case "resize" :
-				resize(m);
-				break;
-			case "crop" :
-				crop(m);
-				break;
-			case "resizeMultiple" :
-				resizeMultiple(m);
-				break;
-			case "compress" :
-				compress(m);
-				break;
-			default :
-				sendError(m, "Invalid or missing action");
-		}
+		vertx.executeBlocking(() -> {
+			switch(m.body().getString("action", "")) {
+				case "resize" :
+					resize(m);
+					break;
+				case "crop" :
+					crop(m);
+					break;
+				case "resizeMultiple" :
+					resizeMultiple(m);
+					break;
+				case "compress" :
+					compress(m);
+					break;
+				default :
+					sendError(m, "Invalid or missing action");
+			}
+			return null;
+		});
 	}
 
 	private void compress(final Message<JsonObject> m) {
