@@ -41,6 +41,8 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -59,11 +61,29 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	@Override
 	public void start(final Promise<Void> startedResult) {
 		super.start();
-		fileAccessProviders.put("file", new FileSystemFileAccess(vertx,
-				config.getBoolean("fs-flat", false)));
+
+		JsonObject s3 = config.getJsonObject("s3");
+		if (s3 != null) {
+			String uri = s3.getString("uri");
+			String accessKey = s3.getString("accessKey");
+			String secretKey = s3.getString("secretKey");
+			String region = s3.getString("region");
+			String bucket = s3.getString("bucket");
+			String ssec = s3.getString("ssec", null);
+			if (uri != null && accessKey != null && secretKey != null && region != null && bucket != null) {
+				try {
+					fileAccessProviders.put("s3", new S3Access(vertx, new URI(uri), accessKey, secretKey, region, bucket, ssec));
+				} catch (URISyntaxException e) {
+					logger.error("Invalid s3 uri.", e);
+				}
+			}
+		}
+		else {
+			fileAccessProviders.put("file", new FileSystemFileAccess(vertx, config.getBoolean("fs-flat", false)));
+		}
+
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
 		registerHandler(startedResult);
-
 	}
 
 	private void registerHandler(Promise<Void> startedResult) {
