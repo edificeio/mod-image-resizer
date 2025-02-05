@@ -22,6 +22,8 @@ import com.drew.metadata.Directory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
+import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -45,10 +47,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.wseduc.webutils.Utils.getOrElse;
+import static io.vertx.core.Future.failedFuture;
+import static io.vertx.core.Future.succeededFuture;
 import static org.imgscalr.Scalr.*;
 
 
@@ -102,25 +107,22 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		vertx.executeBlocking(() -> {
-			switch(m.body().getString("action", "")) {
-				case "resize" :
-					resize(m);
-					break;
-				case "crop" :
-					crop(m);
-					break;
-				case "resizeMultiple" :
-					resizeMultiple(m);
-					break;
-				case "compress" :
-					compress(m);
-					break;
-				default :
-					sendError(m, "Invalid or missing action");
-			}
-			return null;
-		});
+		switch(m.body().getString("action", "")) {
+			case "resize" :
+				resize(m);
+				break;
+			case "crop" :
+				crop(m);
+				break;
+			case "resizeMultiple" :
+				resizeMultiple(m);
+				break;
+			case "compress" :
+				compress(m);
+				break;
+			default :
+				sendError(m, "Invalid or missing action");
+		}
 	}
 
 	private void compress(final Message<JsonObject> m) {
@@ -144,13 +146,16 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 					sendError(m, "Input file not found : " + m.body().getString("src"));
 					return;
 				}
-				try {
-					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					persistImage(src, srcImg, srcImg, fDest, quality.floatValue(), m);
-				} catch (IOException e) {
-					logger.error("Error processing image.", e);
-					sendError(m, "Error processing image.", e);
-				}
+				vertx.executeBlocking(() -> {
+					try {
+						BufferedImage srcImg = ImageIO.read(src.getInputStream());
+						persistImage(src, srcImg, srcImg, fDest, quality.floatValue(), m);
+					} catch (IOException e) {
+						logger.error("Error processing image.", e);
+						sendError(m, "Error processing image.", e);
+					}
+					return null;
+				}, false);
 			}
 		});
 	}
@@ -173,27 +178,27 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if (fDest == null) {
 			return;
 		}
-		fSrc.read(m.body().getString("src"), new Handler<ImageFile>() {
-			@Override
-			public void handle(ImageFile src) {
-				if (src == null) {
-					sendError(m, "Input file not found.");
-					return;
-				}
-				try {
-					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					if (srcImg.getWidth() < (x + width) || srcImg.getHeight() < (y + height)) {
-						sendError(m, "Source image too small for crop.");
-						return;
-					}
-					BufferedImage cropped = Scalr.crop(srcImg, x, y, width, height);
-					persistImage(src, srcImg, cropped, fDest, quality, m);
-				} catch (IOException e) {
-					logger.error("Error processing image.", e);
-					sendError(m, "Error processing image.", e);
-				}
-			}
-		});
+		fSrc.read(m.body().getString("src"), src -> {
+      if (src == null) {
+        sendError(m, "Input file not found.");
+        return;
+      }
+      vertx.executeBlocking(() -> {
+        try {
+          BufferedImage srcImg = ImageIO.read(src.getInputStream());
+          if (srcImg.getWidth() < (x + width) || srcImg.getHeight() < (y + height)) {
+            sendError(m, "Source image too small for crop.");
+          } else {
+            BufferedImage cropped = Scalr.crop(srcImg, x, y, width, height);
+            persistImage(src, srcImg, cropped, fDest, quality, m);
+          }
+        } catch (IOException e) {
+          logger.error("Error processing image.", e);
+          sendError(m, "Error processing image.", e);
+        }
+        return null;
+			}, false);
+    });
 	}
 
 	private void resize(final Message<JsonObject> m) {
@@ -213,31 +218,39 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if (fDest == null) {
 			return;
 		}
-		fSrc.read(m.body().getString("src"), new Handler<ImageFile>() {
-			@Override
-			public void handle(ImageFile src) {
-				if (src == null) {
-					sendError(m, "Input file not found.");
-					return;
-				}
-				try {
-					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					if(srcImg != null)
-					{
-						BufferedImage resized = doResize(width, height, stretch, srcImg);
-						persistImage(src, srcImg, resized, fDest, quality, m);
-					}
-					else
-					{
-						logger.error("Unsupported image type for: " + m.body().getString("src"));
-						sendError(m, "Unsupported image type");
-					}
-				} catch (IOException e) {
-					logger.error("Error processing image.", e);
-					sendError(m, "Error processing image.", e);
-				}
-			}
-		});
+		fSrc.read(m.body().getString("src"), src -> {
+      if (src == null) {
+        sendError(m, "Input file not found.");
+        return;
+      }
+      vertx.executeBlocking(() -> {
+        try {
+          BufferedImage srcImg = ImageIO.read(src.getInputStream());
+          if (srcImg != null) {
+            doResize(width, height, stretch, srcImg)
+							.onSuccess(resized -> {
+                try {
+                  persistImage(src, srcImg, resized, fDest, quality, m);
+                } catch (IOException e) {
+									logger.error("Error processing image.", e);
+									sendError(m, "Error processing image.", e);
+                }
+              })
+							.onFailure(th -> {
+								logger.error("Error resizing image.", th);
+								sendError(m, "Error resizing image.", th);
+							});
+          } else {
+            logger.error("Unsupported image type for: " + m.body().getString("src"));
+            sendError(m, "Unsupported image type");
+          }
+        } catch (IOException e) {
+          logger.error("Error processing image.", e);
+          sendError(m, "Error processing image.", e);
+        }
+        return null;
+      }, false);
+    });
 	}
 
 	private void resizeMultiple(final Message<JsonObject> m) {
@@ -260,52 +273,59 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 				final AtomicInteger count = new AtomicInteger(destinations.size());
 				final JsonObject results = new JsonObject();
-				BufferedImage srcImg;
-				try {
-					srcImg = ImageIO.read(src.getInputStream());
-					if(srcImg == null)
-					{
-						logger.error("Unsupported image type for: " + m.body().getString("src"));
-						sendError(m, "Unsupported image type");
-						return;
-					}
-				} catch (IOException e) {
-					logger.error("Error processing image.", e);
-					sendError(m, "Error processing image.", e);
-					return;
-				}
-				for (Object o: destinations) {
-					if (!(o instanceof JsonObject)) {
-						checkReply(m, count, results);
-						continue;
-					}
-					final JsonObject output = (JsonObject) o;
-					final Integer width = output.getInteger("width");
-					final Integer height = output.getInteger("height");
-					final boolean stretch = output.getBoolean("stretch", false);
-					final FileAccess fDest = getFileAccess(m, output.getString("dest"));
-					if (fDest == null || (width == null && height == null)) {
-						checkReply(m, count, results);
-						continue;
-					}
+				vertx.executeBlocking(() -> {
+					BufferedImage srcImg = null;
 					try {
-						BufferedImage resized = doResize(width, height, stretch, srcImg);
-						persistImage(src, srcImg, resized, fDest, output.getString("dest"), quality,
-								new Handler<String>() {
-							@Override
-							public void handle(String event) {
-								if (event != null && !event.trim().isEmpty()) {
-									results.put(output.getInteger("width", 0) + "x" +
-											output.getInteger("height", 0), event);
-								}
-								checkReply(m, count, results);
-							}
-						});
+						srcImg = ImageIO.read(src.getInputStream());
+						if(srcImg == null)
+						{
+							logger.error("Unsupported image type for: " + m.body().getString("src"));
+							sendError(m, "Unsupported image type");
+						}
 					} catch (IOException e) {
 						logger.error("Error processing image.", e);
-						checkReply(m, count, results);
+						sendError(m, "Error processing image.", e);
 					}
-				}
+					return srcImg;
+				}, false).onSuccess(srcImg -> {
+					if(srcImg == null) {
+						return; // The error has been treated before
+					}
+
+					for (Object o: destinations) {
+						if (!(o instanceof JsonObject)) {
+							checkReply(m, count, results);
+							continue;
+						}
+						final JsonObject output = (JsonObject) o;
+						final Integer width = output.getInteger("width");
+						final Integer height = output.getInteger("height");
+						final boolean stretch = output.getBoolean("stretch", false);
+						final FileAccess fDest = getFileAccess(m, output.getString("dest"));
+						if (fDest == null || (width == null && height == null)) {
+							checkReply(m, count, results);
+							continue;
+						}
+						doResize(width, height, stretch, srcImg).onSuccess(resized -> {
+								try {
+									persistImage(src, srcImg, resized, fDest, output.getString("dest"), quality,
+                    event -> {
+                      if (event != null && !event.trim().isEmpty()) {
+                        results.put(output.getInteger("width", 0) + "x" +
+                          output.getInteger("height", 0), event);
+                      }
+                      checkReply(m, count, results);
+                    });
+								} catch (IOException e) {
+									logger.error("Error processing image.", e);
+									checkReply(m, count, results);
+								}
+							}).onFailure(th -> {
+							logger.error("Error processing image.", th);
+							checkReply(m, count, results);
+						});
+					}
+				});
 			}
 
 			private void checkReply(Message<JsonObject> m, AtomicInteger count, JsonObject results) {
@@ -319,65 +339,66 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		});
 	}
 
-	private BufferedImage doResize(Integer width, Integer height, boolean stretch,
-			BufferedImage srcImg) {
-		// Sanity checks
-		if( width != null  && width.intValue() <= 0 )  return srcImg;
-		if( height != null && height.intValue() <= 0 ) return srcImg;
+	private Future<BufferedImage> doResize(Integer width, Integer height, boolean stretch,
+																									 BufferedImage srcImg) {
+		return vertx.executeBlocking(() -> {
+			// Sanity checks
+			if( width != null  && width.intValue() <= 0 )  return srcImg;
+			if( height != null && height.intValue() <= 0 ) return srcImg;
 
-		// Computations
-		BufferedImage resized = null;
-		if (width != null && height != null && !stretch &&
+			// Computations
+			BufferedImage resized = null;
+			if (width != null && height != null && !stretch &&
 				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
-			if (srcImg.getHeight()/(float)height < srcImg.getWidth()/(float)width) {
-				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+				if (srcImg.getHeight()/(float)height < srcImg.getWidth()/(float)width) {
+					resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 						Mode.FIT_TO_HEIGHT, width, height);
-			} else {
-				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+				} else {
+					resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 						Mode.FIT_TO_WIDTH, width, height);
-			}
-			resized.flush();
-			int x = (resized.getWidth() - width) / 2;
-			int y = (resized.getHeight() - height) / 2;
-			resized = Scalr.crop(resized, x, y, width, height);
-		} else if (width != null && height != null &&
+				}
+				resized.flush();
+				int x = (resized.getWidth() - width) / 2;
+				int y = (resized.getHeight() - height) / 2;
+				resized = Scalr.crop(resized, x, y, width, height);
+			} else if (width != null && height != null &&
 				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_EXACT, width, height);
-		} else if (height != null && (allowImageEnlargement || height < srcImg.getHeight())) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+			} else if (height != null && (allowImageEnlargement || height < srcImg.getHeight())) {
+				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_HEIGHT, height);
-		} else if (width != null && (allowImageEnlargement || width < srcImg.getWidth())) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+			} else if (width != null && (allowImageEnlargement || width < srcImg.getWidth())) {
+				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
 					Mode.FIT_TO_WIDTH, width);
-		} else if( width != null && height != null && !allowImageEnlargement && width >= srcImg.getWidth() && height >= srcImg.getHeight()) {
-			// If both dimensions are specified and enlargement is not allowed,
-			// and the "resized" image is bigger than the source - and thus was not really resized -,
-			// then this "resized" image should at least respect the width/height ratio. 
-			float ratio = width / (float)height;
-			float srcRatio = srcImg.getWidth() / (float)srcImg.getHeight();
-			if( ratio > srcRatio ) {
-				int newHeight = (srcImg.getWidth()*height) / width; // = srcWidth / ratio
-				resized = Scalr.crop(srcImg, 0, (srcImg.getHeight()-newHeight)>>1, srcImg.getWidth(), newHeight);
-			} else if( ratio < srcRatio ) {
-				int newWidth = (srcImg.getHeight()*width) / height; // = srcHeight * ratio
-				resized = Scalr.crop(srcImg, (srcImg.getWidth()-newWidth)>>1, 0, newWidth, srcImg.getHeight());
+			} else if( width != null && height != null && !allowImageEnlargement && width >= srcImg.getWidth() && height >= srcImg.getHeight()) {
+				// If both dimensions are specified and enlargement is not allowed,
+				// and the "resized" image is bigger than the source - and thus was not really resized -,
+				// then this "resized" image should at least respect the width/height ratio.
+				float ratio = width / (float)height;
+				float srcRatio = srcImg.getWidth() / (float)srcImg.getHeight();
+				if( ratio > srcRatio ) {
+					int newHeight = (srcImg.getWidth()*height) / width; // = srcWidth / ratio
+					resized = Scalr.crop(srcImg, 0, (srcImg.getHeight()-newHeight)>>1, srcImg.getWidth(), newHeight);
+				} else if( ratio < srcRatio ) {
+					int newWidth = (srcImg.getHeight()*width) / height; // = srcHeight * ratio
+					resized = Scalr.crop(srcImg, (srcImg.getWidth()-newWidth)>>1, 0, newWidth, srcImg.getHeight());
+				}
 			}
-		}
-		if (resized == null) {
-			resized = srcImg;
-		}
-		
-		return resized;
+			if (resized == null) {
+				resized = srcImg;
+			}
+			return resized;
+		}, false);
 	}
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
-							  FileAccess fDest, final Message<JsonObject> m) throws IOException {
+														FileAccess fDest, final Message<JsonObject> m) throws IOException {
 		persistImage(src, srcImg, resized, fDest, 0.8f, m);
 	}
 
 	private void persistImage(final ImageFile src, BufferedImage srcImg, BufferedImage resized,
-			FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
+														FileAccess fDest, float quality, final Message<JsonObject> m) throws IOException {
 		final String orientation = getOrientation(src);
 		final BufferedImage imgToPersist;
 		if (orientation != null) {
@@ -385,29 +406,35 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		} else {
 			imgToPersist = resized;
 		}
-		ImageFile outImg = compressImage(src, srcImg, imgToPersist, quality);
-		final int size = outImg.getData().length;
-		fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
-			@Override
-			public void handle(String result) {
-				if (result != null && !result.trim().isEmpty()) {
-					sendOK(m, new JsonObject().put("output", result).put("size", size));
-				} else {
-					sendError(m, "Error writing file.");
+		compressImage(src, srcImg, imgToPersist, quality).onSuccess(outImg -> {
+			final int size = outImg.getData().length;
+			fDest.write(m.body().getString("dest"), outImg, new Handler<String>() {
+				@Override
+				public void handle(String result) {
+					if (result != null && !result.trim().isEmpty()) {
+						sendOK(m, new JsonObject().put("output", result).put("size", size));
+					} else {
+						sendError(m, "Error writing file.");
+					}
 				}
-			}
-		});
+			});
+		}).onFailure(th -> sendError(m, th.getMessage()));
 	}
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
-			FileAccess fDest, String destination, Handler<String> handler) throws IOException {
+														FileAccess fDest, String destination, Handler<String> handler) throws IOException {
 		persistImage(src, srcImg, resized, fDest, destination, 0.8f, handler);
 	}
 
 	private void persistImage(ImageFile src, BufferedImage srcImg, BufferedImage resized,
-			FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
-		ImageFile outImg = compressImage(src, srcImg, resized, quality);
-		fDest.write(destination, outImg, handler);
+														FileAccess fDest, String destination, float quality, Handler<String> handler) throws IOException {
+		compressImage(src, srcImg, resized, quality)
+			.onSuccess(outImg -> fDest.write(destination, outImg, handler))
+			.onFailure(th -> {
+				logger.error("An error occurred while persisting image", th);
+				handler.handle(null);
+			});
+
 	}
 
 	private String getOrientation(ImageFile src) {
@@ -484,41 +511,43 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		return writer;
 	}
 
-	private ImageFile compressImage(ImageFile src, BufferedImage srcImg, BufferedImage resized, float quality)
-			throws IOException {
-		srcImg.flush();
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		if (logger.isDebugEnabled()) {
-			logger.debug("Original file name : " + src.getFilename());
-			logger.debug("Original file extension : " + getExtension(src.getFilename()));
-			logger.debug("Original file mime type : " + src.getContentType());
-			logger.debug("Original file format : " + getFormatByContentType(src.getContentType()));
-		}
+	private Future<ImageFile> compressImage(ImageFile src, BufferedImage srcImg, BufferedImage resized, float quality)
+		throws IOException {
+		return vertx.executeBlocking(() -> {
+			srcImg.flush();
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			if (logger.isDebugEnabled()) {
+				logger.debug("Original file name : " + src.getFilename());
+				logger.debug("Original file extension : " + getExtension(src.getFilename()));
+				logger.debug("Original file mime type : " + src.getContentType());
+				logger.debug("Original file format : " + getFormatByContentType(src.getContentType()));
+			}
 
-		ImageWriter writer = getImageWriter(src);
-		ImageWriteParam param = writer.getDefaultWriteParam();
-		if (quality < 1f && param.canWriteCompressed()) {
-			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			if (JAI_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
-				param.setCompressionType("Deflate");
-			} else if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
-				param.setCompressionType(param.getCompressionTypes()[0]);
+			ImageWriter writer = getImageWriter(src);
+			ImageWriteParam param = writer.getDefaultWriteParam();
+			if (quality < 1f && param.canWriteCompressed()) {
+				param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+				if (JAI_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
+					param.setCompressionType("Deflate");
+				} else if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
+					param.setCompressionType(param.getCompressionTypes()[0]);
+				}
+				if (param.getCompressionType() != null) {
+					param.setCompressionQuality(quality);
+				} else {
+					param.setCompressionMode(ImageWriteParam.MODE_DISABLED);
+				}
 			}
-			if (param.getCompressionType() != null) {
-				param.setCompressionQuality(quality);
-			} else {
-				param.setCompressionMode(ImageWriteParam.MODE_DISABLED);
-			}
-		}
-		ImageOutputStream ios = ImageIO.createImageOutputStream(out);
-		writer.setOutput(ios);
-		writer.write(null, new IIOImage(resized, null, null), param);
-		resized.flush();
-		ios.close();
-		ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(), src.getContentType());
-		out.close();
-		writer.dispose();
-		return outImg;
+			ImageOutputStream ios = ImageIO.createImageOutputStream(out);
+			writer.setOutput(ios);
+			writer.write(null, new IIOImage(resized, null, null), param);
+			resized.flush();
+			ios.close();
+			ImageFile outImg = new ImageFile(out.toByteArray(), src.getFilename(), src.getContentType());
+			out.close();
+			writer.dispose();
+			return outImg;
+		}, false);
 	}
 
 	private FileAccess getFileAccess(Message<JsonObject> m, String path) {
