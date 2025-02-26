@@ -102,25 +102,22 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	@Override
 	public void handle(Message<JsonObject> m) {
-		vertx.executeBlocking(() -> {
-			switch(m.body().getString("action", "")) {
-				case "resize" :
-					resize(m);
-					break;
-				case "crop" :
-					crop(m);
-					break;
-				case "resizeMultiple" :
-					resizeMultiple(m);
-					break;
-				case "compress" :
-					compress(m);
-					break;
-				default :
-					sendError(m, "Invalid or missing action");
-			}
-			return null;
-		});
+		switch(m.body().getString("action", "")) {
+			case "resize" :
+				resize(m);
+				break;
+			case "crop" :
+				crop(m);
+				break;
+			case "resizeMultiple" :
+				resizeMultiple(m);
+				break;
+			case "compress" :
+				compress(m);
+				break;
+			default :
+				sendError(m, "Invalid or missing action");
+		}
 	}
 
 	private void compress(final Message<JsonObject> m) {
