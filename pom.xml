@@ -19,7 +19,8 @@
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
         <swiftClientVersion>1.0.0</swiftClientVersion>
-        <metadataExtractorVersion>2.10.1</metadataExtractorVersion>
+        <metadataExtractorVersion>2.19.0</metadataExtractorVersion>
+        <junitVersion>4.13.2</junitVersion>
     </properties>
 
     <scm>
@@ -68,6 +69,12 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-unit</artifactId>
+            <version>${vertxVersion}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.imgscalr</groupId>
             <artifactId>imgscalr-lib</artifactId>
             <version>${imgscalrVersion}</version>
@@ -76,6 +83,12 @@
             <groupId>com.drewnoakes</groupId>
             <artifactId>metadata-extractor</artifactId>
             <version>${metadataExtractorVersion}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junitVersion}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

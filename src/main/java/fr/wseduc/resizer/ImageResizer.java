@@ -24,7 +24,6 @@ import com.drew.metadata.Tag;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -57,6 +56,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
+	private int maxSurfaceForHighQualityScaling;
 
 	@Override
 	public void start(final Promise<Void> startedResult) {
@@ -83,12 +83,14 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		}
 
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
+		maxSurfaceForHighQualityScaling = config.getInteger("max-surface-high-quality-scaling", 2000 * 2000);
 		registerHandler(startedResult);
 	}
 
 	private void registerHandler(Promise<Void> startedResult) {
-		eb.consumer(config.getString("address", "image.resizer"), this);
-		logger.info("BusModBase: Image resizer starts on address: " + config.getString("address"));
+		final String address = config.getString("address", "image.resizer");
+		eb.consumer(address, this);
+		logger.info("BusModBase: Image resizer starts on address: " + address);
 		startedResult.complete();
 	}
 
@@ -321,16 +323,16 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		// Sanity checks
 		if( width != null  && width.intValue() <= 0 )  return srcImg;
 		if( height != null && height.intValue() <= 0 ) return srcImg;
-
+		final Method scalarMode = getResizingMethod(srcImg);
 		// Computations
 		BufferedImage resized = null;
 		if (width != null && height != null && !stretch &&
 				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
 			if (srcImg.getHeight()/(float)height < srcImg.getWidth()/(float)width) {
-				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+				resized = Scalr.resize(srcImg, scalarMode,
 						Mode.FIT_TO_HEIGHT, width, height);
 			} else {
-				resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+				resized = Scalr.resize(srcImg, scalarMode,
 						Mode.FIT_TO_WIDTH, width, height);
 			}
 			resized.flush();
@@ -339,13 +341,13 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			resized = Scalr.crop(resized, x, y, width, height);
 		} else if (width != null && height != null &&
 				(allowImageEnlargement || (width < srcImg.getWidth() && height < srcImg.getHeight()))) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+			resized = Scalr.resize(srcImg, scalarMode,
 					Mode.FIT_EXACT, width, height);
 		} else if (height != null && (allowImageEnlargement || height < srcImg.getHeight())) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+			resized = Scalr.resize(srcImg, scalarMode,
 					Mode.FIT_TO_HEIGHT, height);
 		} else if (width != null && (allowImageEnlargement || width < srcImg.getWidth())) {
-			resized = Scalr.resize(srcImg, Method.ULTRA_QUALITY,
+			resized = Scalr.resize(srcImg, scalarMode,
 					Mode.FIT_TO_WIDTH, width);
 		} else if( width != null && height != null && !allowImageEnlargement && width >= srcImg.getWidth() && height >= srcImg.getHeight()) {
 			// If both dimensions are specified and enlargement is not allowed,
@@ -547,6 +549,23 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			return contentType.substring(6);
 		}
 		return "";
+	}
+
+
+	/**
+	 * Determines the resizing method to use based on the surface of the source image so the resizing doesn't take too long.
+	 * @param srcImg the source image to resize
+	 * @return the resizing method to use based on the surface of the source image.
+	 */
+	private Method getResizingMethod(BufferedImage srcImg) {
+		final int width = srcImg.getWidth();
+		final int height = srcImg.getHeight();
+		final int surface = width * height;
+		if(surface < maxSurfaceForHighQualityScaling) {
+			return Method.ULTRA_QUALITY;
+		} else {
+			return Method.BALANCED;
+		}
 	}
 
 }
