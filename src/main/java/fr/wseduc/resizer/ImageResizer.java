@@ -32,19 +32,20 @@ import io.vertx.core.logging.LoggerFactory;
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
+import javax.imageio.*;
+import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static fr.wseduc.webutils.Utils.getOrElse;
@@ -57,6 +58,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
 	private int maxSurfaceForHighQualityScaling;
+	private int srcImageMaxWidthForResize;
+	private int srcImageMaxHeightForResize;
+	private boolean optimizedResizing;
 
 	@Override
 	public void start(final Promise<Void> startedResult) {
@@ -83,7 +87,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		}
 
 		allowImageEnlargement = config.getBoolean("allow-image-enlargement", false);
-		maxSurfaceForHighQualityScaling = config.getInteger("max-surface-high-quality-scaling", 2000 * 2000);
+		optimizedResizing = config.getBoolean("resizing-optimized", true);
+		srcImageMaxWidthForResize = config.getInteger("resizing-src-image-max-width", 1440);
+		srcImageMaxHeightForResize = config.getInteger("resizing-src-image-max-height", 900);
+		maxSurfaceForHighQualityScaling = srcImageMaxWidthForResize * srcImageMaxHeightForResize;
 		registerHandler(startedResult);
 	}
 
@@ -220,14 +227,12 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 					return;
 				}
 				try {
-					BufferedImage srcImg = ImageIO.read(src.getInputStream());
-					if(srcImg != null)
-					{
-						BufferedImage resized = doResize(width, height, stretch, srcImg);
-						persistImage(src, srcImg, resized, fDest, quality, m);
-					}
-					else
-					{
+					final Optional<BufferedImage> srcImg = getSrcImg(src.getInputStream());
+					if(srcImg.isPresent()) {
+						final BufferedImage img = srcImg.get();
+						BufferedImage resized = doResize(width, height, stretch, img);
+						persistImage(src, img, resized, fDest, quality, m);
+					} else {
 						logger.error("Unsupported image type for: " + m.body().getString("src"));
 						sendError(m, "Unsupported image type");
 					}
@@ -237,6 +242,59 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 			}
 		});
+	}
+	private Optional<BufferedImage> getSrcImg(InputStream inputStream) {
+		BufferedImage image;
+		try {
+			if(optimizedResizing) {
+				final byte[] imageBytes = toByteArray(inputStream);
+				final int[] dimensions = getImageDimensions(new ByteArrayInputStream(imageBytes));
+				final int width = dimensions[0];
+				final int height = dimensions[1];
+				if (width * height > maxSurfaceForHighQualityScaling) {
+					// The image is too large for high quality scaling, we will use sub-sampling
+					logger.warn("Image surface is too large for high quality scaling: " + width + "x" + height);
+					final ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(imageBytes));
+					Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+					ImageReader reader = readers.next();
+					reader.setInput(iis, true);
+					ImageReadParam param = reader.getDefaultReadParam();
+
+					int xSubSampling = (int) Math.max(1, Math.ceil(width * 1. / srcImageMaxWidthForResize));
+					int ySubSampling = (int) Math.max(1, Math.ceil(height * 1. / srcImageMaxHeightForResize));
+					int subSampling = Math.max(xSubSampling, ySubSampling);
+					param.setSourceSubsampling(subSampling, subSampling, 0, 0);
+					image = reader.read(0, param);
+				} else {
+					image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+				}
+			} else {
+				image = ImageIO.read(inputStream);
+			}
+		} catch (IOException e) {
+			logger.error("Error reading image.", e);
+			image = null;
+		}
+		return Optional.ofNullable(image);
+	}
+
+	/**
+	 * Get the resolutions of an image without loading the whole image into memory.
+	 * @param input the input stream of the image
+	 * @return an array containing the width and height of the image
+	 * @throws IOException if an error occurs while reading the image
+	 */
+	private static int[] getImageDimensions(InputStream input) throws IOException {
+		try (ImageInputStream iis = ImageIO.createImageInputStream(input)) {
+			Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+			if (!readers.hasNext()) throw new IOException("No image reader found");
+			ImageReader reader = readers.next();
+			reader.setInput(iis, true, true);
+			int width = reader.getWidth(0);
+			int height = reader.getHeight(0);
+			reader.dispose();
+			return new int[]{width, height};
+		}
 	}
 
 	private void resizeMultiple(final Message<JsonObject> m) {
@@ -259,18 +317,11 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				}
 				final AtomicInteger count = new AtomicInteger(destinations.size());
 				final JsonObject results = new JsonObject();
-				BufferedImage srcImg;
-				try {
-					srcImg = ImageIO.read(src.getInputStream());
-					if(srcImg == null)
-					{
-						logger.error("Unsupported image type for: " + m.body().getString("src"));
-						sendError(m, "Unsupported image type");
-						return;
-					}
-				} catch (IOException e) {
-					logger.error("Error processing image.", e);
-					sendError(m, "Error processing image.", e);
+				final Optional<BufferedImage> srcImg = getSrcImg(src.getInputStream());
+				if(!srcImg.isPresent())
+				{
+					logger.error("Unsupported image type for: " + m.body().getString("src"));
+					sendError(m, "Unsupported image type");
 					return;
 				}
 				for (Object o: destinations) {
@@ -288,8 +339,9 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 						continue;
 					}
 					try {
-						BufferedImage resized = doResize(width, height, stretch, srcImg);
-						persistImage(src, srcImg, resized, fDest, output.getString("dest"), quality,
+						final BufferedImage image = srcImg.get();
+						BufferedImage resized = doResize(width, height, stretch, image);
+						persistImage(src, image, resized, fDest, output.getString("dest"), quality,
 								new Handler<String>() {
 							@Override
 							public void handle(String event) {
@@ -564,8 +616,17 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if(surface < maxSurfaceForHighQualityScaling) {
 			return Method.ULTRA_QUALITY;
 		} else {
-			return Method.BALANCED;
+			return Method.SPEED;
 		}
+	}
+	private static byte[] toByteArray(InputStream input) throws IOException {
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		byte[] data = new byte[8192];
+		int nRead;
+		while ((nRead = input.read(data, 0, data.length)) != -1) {
+			buffer.write(data, 0, nRead);
+		}
+		return buffer.toByteArray();
 	}
 
 }

@@ -28,7 +28,9 @@ public class ImageResizerTest {
     final Promise<Void> startPromise = Promise.promise();
     final Vertx vertx = Vertx.vertx();
     final Context vxContext = vertx.getOrCreateContext();
-    vxContext.config().put("fs-flat", true);
+    vxContext.config()
+      .put("fs-flat", true)
+      .put("allow-image-enlargement", true);
     resizer.init(vertx, vxContext);
     resizer.start(startPromise);
     startPromise.future().onComplete(ar -> {
@@ -99,6 +101,28 @@ public class ImageResizerTest {
         final JsonObject body = reply.body();
         if(isOk(body)) {
           checkOutputImage(context, dest + body.getString("output"), 100, 100);
+          async.complete();
+        } else {
+          context.fail(body.getString("message"));
+        }
+      })
+      .onFailure(context::fail);
+  }
+
+  @Test
+  public void testDenseImageResizeToALargeResolution(final TestContext context) {
+    final Async async = context.async();
+    final String dest = "/tmp/dense_out_" + System.currentTimeMillis() + ".jpg";
+    resizer.getVertx().eventBus().<JsonObject>request("image.resizer", new JsonObject()
+        .put("action", "resize")
+        .put("src", getPathToImageFile("dense.jpg"))
+        .put("dest", "file://" + dest)
+        .put("width", 1440)
+        .put("height", 990))
+      .onSuccess( reply -> {
+        final JsonObject body = reply.body();
+        if(isOk(body)) {
+          checkOutputImage(context, dest + body.getString("output"), 1440, 990);
           async.complete();
         } else {
           context.fail(body.getString("message"));
