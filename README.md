@@ -1,5 +1,9 @@
-Module Image Resizer
-====================
+# À propos de mod-image-resizer
+    
+* Licence : [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0) - Copyright Edifice
+* Financeur(s) : Edifice
+* Développeur(s) : Edifice
+* Description : module asynchrone de redimensionnement d'images.
 
 This module allows you to resize and save images. For reading and storing images, it can use the file system or GridFS.
 
