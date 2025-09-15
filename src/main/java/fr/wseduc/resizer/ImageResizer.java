@@ -96,7 +96,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 
 	private void registerHandler(Promise<Void> startedResult) {
 		final String address = config.getString("address", "image.resizer");
-		eb.consumer(address, this);
+		eb.localConsumer(address, this);
 		logger.info("BusModBase: Image resizer starts on address: " + address);
 		startedResult.complete();
 	}
