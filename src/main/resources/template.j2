@@ -1,0 +1,50 @@
+{
+  "name": "fr.wseduc~mod-image-resizer",
+  "waitDeploy" : true,
+  "worker": true,
+  {% if s3 is not defined or 'storage' not in s3 or not s3['storage'] %}
+  "multi-threaded": false,
+  {% endif %}
+  "config": {
+    "address": "wse.image.resizer",
+    "fs-flat": false,
+    "instances": {{ imageResizerInstances|default(20)}}
+    {% if s3 is defined and 'storage' in s3 and s3['storage'] %}
+      ,"s3": {
+        "uri": "{{ s3['storage']['uri'] }}",
+        "accessKey": "{{ s3['storage']['accessKey'] }}",
+        "secretKey": "{{ s3['storage']['secretKey'] }}",
+        {% if 'ssec' in s3['storage'] %}
+        "ssec": "{{ s3['storage']['ssec'] }}",
+        {% endif %}
+        "region": "{{ s3['storage']['region'] }}",
+        "bucket": "{{ s3['storage']['bucket'] }}",
+        "keepAlive": {{ s3['storage']['keepAlive'] | default('true') }},
+        "poolSize": {{ s3['storage']['poolSize'] | default(64) }},
+        "timeout": {{ s3['storage']['timeout'] | default(60000) }}
+      {% if s3['storage']['s3fallbacks3s3'] is defined and s3['storage']['s3fallbacks3s3']  %}
+      ,"s3fallbacks3s3": {
+        "uri": "{{ s3['storage']['s3fallbacks3s3']['uri'] }}",
+        "accessKey": "{{ s3['storage']['s3fallbacks3s3']['accessKey'] }}",
+        "secretKey": "{{ s3['storage']['s3fallbacks3s3']['secretKey'] }}",
+        "region": "{{ s3['storage']['s3fallbacks3s3']['region'] }}",
+        "bucket": "{{ s3['storage']['s3fallbacks3s3']['bucket'] }}"
+        {% if s3['storage']['s3fallbacks3s3']['ssec'] is defined and s3['storage']['s3fallbacks3s3']['ssec'] %}
+        ,"ssec": "{{ s3['storage']['s3fallbacks3s3']['ssec'] }}"
+        {% endif %}
+      }
+      {% endif %}
+      {% if s3['storage']['s3fallback'] is defined and s3['storage']['s3fallback']  %}
+      ,"s3fallback": {
+        "uri": "{{ s3['storage']['s3fallback']['uri'] }}",
+        "accessKey": "{{ s3['storage']['s3fallback']['accessKey'] }}",
+        "secretKey": "{{ s3['storage']['s3fallback']['secretKey'] }}",
+        "region": "{{ s3['storage']['s3fallback']['region'] }}",
+        "bucket": "{{ s3['storage']['s3fallback']['bucket'] }}",
+        "ssec": "{{ s3['storage']['s3fallback']['ssec'] }}"
+      }
+      {% endif %}
+    }
+    {% endif %}
+  }
+}
