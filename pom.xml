@@ -11,9 +11,9 @@
 
     <groupId>fr.wseduc</groupId>
     <artifactId>mod-image-resizer</artifactId>
-    <version>3.2.1</version>
+    <version>3.2-SNAPSHOT</version>
     <properties>
-        <entcore.version>6.13.2</entcore.version>
+        <entcore.version>6.13-SNAPSHOT</entcore.version>
         <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
