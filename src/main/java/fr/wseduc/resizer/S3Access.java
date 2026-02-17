@@ -1,7 +1,7 @@
 package fr.wseduc.resizer;
 
-import org.entcore.common.s3.S3Client;
-import org.entcore.common.s3.storage.StorageObject;
+import io.edifice.storage.s3.S3Client;
+import io.edifice.storage.s3.StorageObject;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -24,19 +24,16 @@ public class S3Access implements FileAccess {
             handler.handle(null);
             return;
         }
-        client.readFile(path[1], path[0], new Handler<AsyncResult<StorageObject>>() {
-            @Override
-            public void handle(AsyncResult<StorageObject> event) {
-                if (event.succeeded()) {
-                    StorageObject f = event.result();
-                    handler.handle(new ImageFile(
-                            f.getBuffer().getBytes(),
-                            f.getFilename(),
-                            f.getContentType()
-                    ));
-                } else {
-                    handler.handle(null);
-                }
+        client.readFile(path[1], path[0], event -> {
+            if (event.succeeded()) {
+                StorageObject f = event.result();
+                handler.handle(new ImageFile(
+                        f.getBuffer().getBytes(),
+                        f.getFilename(),
+                        f.getContentType()
+                ));
+            } else {
+                handler.handle(null);
             }
         });
     }

@@ -13,13 +13,14 @@
     <artifactId>mod-image-resizer</artifactId>
     <version>3.2-SNAPSHOT</version>
     <properties>
-        <entcore.version>6.13-SNAPSHOT</entcore.version>
         <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
         <swiftClientVersion>1.0.0</swiftClientVersion>
         <metadataExtractorVersion>2.19.0</metadataExtractorVersion>
         <junitVersion>4.13.2</junitVersion>
+        <webUtilsVersion>3.3-SNAPSHOT</webUtilsVersion>
+        <edifice.storage.version>1.0-SNAPSHOT</edifice.storage.version>
     </properties>
 
     <scm>
@@ -38,16 +39,15 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.edifice</groupId>
+            <artifactId>edifice-storage-common</artifactId>
+            <version>${edifice.storage.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
             <version>${vertxVersion}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.entcore</groupId>
-            <artifactId>common</artifactId>
-            <version>${entcore.version}</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
