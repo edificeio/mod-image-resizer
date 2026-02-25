@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MVN_OPTS="-Duser.home=/var/maven"
+MVN_OPTS="-Duser.home=/var/maven -T 4"
 
 if [ -z ${USER_UID:+x} ]
 then
