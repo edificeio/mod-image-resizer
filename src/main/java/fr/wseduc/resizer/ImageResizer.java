@@ -74,9 +74,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 			String region = s3.getString("region");
 			String bucket = s3.getString("bucket");
 			String ssec = s3.getString("ssec", null);
+			boolean trustAll = s3.getBoolean("trustAll", false);
 			if (uri != null && accessKey != null && secretKey != null && region != null && bucket != null) {
 				try {
-					fileAccessProviders.put("s3", new S3Access(vertx, new URI(uri), accessKey, secretKey, region, bucket, ssec));
+					fileAccessProviders.put("s3", new S3Access(vertx, new URI(uri), accessKey, secretKey, region, bucket, ssec, trustAll));
 				} catch (URISyntaxException e) {
 					logger.error("Invalid s3 uri.", e);
 				}

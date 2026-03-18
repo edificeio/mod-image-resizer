@@ -14,7 +14,12 @@ public class S3Access implements FileAccess {
     private final S3Client client;
 
     public S3Access(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec) {
-        client = new S3Client(vertx, uri, accessKey, secretKey, region, bucket, ssec);
+        this(vertx, uri, accessKey, secretKey, region, bucket, ssec, false);
+    }
+
+    public S3Access(Vertx vertx, URI uri, String accessKey, String secretKey, String region, String bucket, String ssec, boolean trustAll) {
+        client = new S3Client(vertx, uri, accessKey, secretKey, region, bucket, ssec,
+                false, 10000, 100, 10000L, 16, trustAll);
     }
 
     @Override
