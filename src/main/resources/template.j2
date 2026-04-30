@@ -9,41 +9,41 @@
     "address": "wse.image.resizer",
     "fs-flat": false,
     "instances": {{ imageResizerInstances|default(20)}}
-    {% if s3 is defined and 'storage' in s3 and s3['storage'] %}
-      ,"s3": {
-        "uri": "{{ s3['storage']['uri'] }}",
-        "accessKey": "{{ s3['storage']['accessKey'] }}",
-        "secretKey": "{{ s3['storage']['secretKey'] }}",
-        {% if 'ssec' in s3['storage'] %}
-        "ssec": "{{ s3['storage']['ssec'] }}",
-        {% endif %}
-        "region": "{{ s3['storage']['region'] }}",
-        "bucket": "{{ s3['storage']['bucket'] }}",
-        "keepAlive": {{ s3['storage']['keepAlive'] | default('true') }},
-        "poolSize": {{ s3['storage']['poolSize'] | default(64) }},
-        "timeout": {{ s3['storage']['timeout'] | default(60000) }}
-      {% if s3['storage']['s3fallbacks3s3'] is defined and s3['storage']['s3fallbacks3s3']  %}
-      ,"s3fallbacks3s3": {
-        "uri": "{{ s3['storage']['s3fallbacks3s3']['uri'] }}",
-        "accessKey": "{{ s3['storage']['s3fallbacks3s3']['accessKey'] }}",
-        "secretKey": "{{ s3['storage']['s3fallbacks3s3']['secretKey'] }}",
-        "region": "{{ s3['storage']['s3fallbacks3s3']['region'] }}",
-        "bucket": "{{ s3['storage']['s3fallbacks3s3']['bucket'] }}"
-        {% if s3['storage']['s3fallbacks3s3']['ssec'] is defined and s3['storage']['s3fallbacks3s3']['ssec'] %}
-        ,"ssec": "{{ s3['storage']['s3fallbacks3s3']['ssec'] }}"
-        {% endif %}
-      }
-      {% endif %}
-      {% if s3['storage']['s3fallback'] is defined and s3['storage']['s3fallback']  %}
-      ,"s3fallback": {
-        "uri": "{{ s3['storage']['s3fallback']['uri'] }}",
-        "accessKey": "{{ s3['storage']['s3fallback']['accessKey'] }}",
-        "secretKey": "{{ s3['storage']['s3fallback']['secretKey'] }}",
-        "region": "{{ s3['storage']['s3fallback']['region'] }}",
-        "bucket": "{{ s3['storage']['s3fallback']['bucket'] }}",
-        "ssec": "{{ s3['storage']['s3fallback']['ssec'] }}"
-      }
-      {% endif %}
+    {% if STORAGE_S3_URI is defined %}
+    ,"s3": {
+           "uri": "${STORAGE_S3_URI}",
+           "accessKey": "${STORAGE_S3_ACCESS_KEY}",
+           "secretKey": "${STORAGE_S3_SECRET_KEY}",
+           "ssec": "${STORAGE_S3_SSEC}",
+           "region": "${STORAGE_S3_REGION}",
+           "bucket": "${STORAGE_S3_BUCKET}",
+           "keepAlive": {{STORAGE_S3_BUCKET_KEEP_ALIVE | default('true')}},
+           "poolSize": {{ STORAGE_S3_BUCKET_POOL_SIZE | default(64) }},
+           "timeout": {{ STORAGE_S3_BUCKET_TIMEOUT | default(60000) }},
+           {% if STORAGE_S3_FALLBACK_S3_S3_URI  %}
+           "s3fallbacks3s3": {
+               "uri": "${STORAGE_S3_FALLBACK_S3_S3_URI}",
+               "accessKey": "${STORAGE_S3_FALLBACK_S3_S3_ACCESS_KEY}",
+               "secretKey": "${STORAGE_S3_FALLBACK_S3_S3_SECRET_KEY}",
+               "region": "${STORAGE_S3_FALLBACK_S3_S3_REGION}",
+               "bucket": "${STORAGE_S3_FALLBACK_S3_S3_BUCKET}"
+               {% if STORAGE_S3_FALLBACK_S3_S3_SSEC is defined %}
+               ,"ssec": "${STORAGE_S3_FALLBACK_S3_S3_SSEC}"
+               {% endif %}
+             },
+           {% endif %}
+           {% if STORAGE_S3_FALLBACK_S3_URI is defined %}
+           "s3fallback": {
+               "uri": "${STORAGE_S3_FALLBACK_S3_URI}",
+               "accessKey": "${STORAGE_S3_FALLBACK_S3_ACCESS_KEY}",
+               "secretKey": "${STORAGE_S3_FALLBACK_S3_SECRET_KEY}",
+               "region": "${STORAGE_S3_FALLBACK_S3_REGION}",
+               "bucket": "${STORAGE_S3_FALLBACK_S3_BUCKET}"
+               {% if STORAGE_S3_FALLBACK_S3_SSEC is defined %}
+               ,"ssec": "${STORAGE_S3_FALLBACK_S3_SSEC}"
+               {% endif %}
+           }
+           {% endif %}
     }
     {% endif %}
   }
