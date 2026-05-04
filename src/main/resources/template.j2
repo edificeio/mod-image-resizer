@@ -19,9 +19,9 @@
            "bucket": "${STORAGE_S3_BUCKET}",
            "keepAlive": {{STORAGE_S3_BUCKET_KEEP_ALIVE | default('true')}},
            "poolSize": {{ STORAGE_S3_BUCKET_POOL_SIZE | default(64) }},
-           "timeout": {{ STORAGE_S3_BUCKET_TIMEOUT | default(60000) }},
+           "timeout": {{ STORAGE_S3_BUCKET_TIMEOUT | default(60000) }}
            {% if STORAGE_S3_FALLBACK_S3_S3_URI  %}
-           "s3fallbacks3s3": {
+           ,"s3fallbacks3s3": {
                "uri": "${STORAGE_S3_FALLBACK_S3_S3_URI}",
                "accessKey": "${STORAGE_S3_FALLBACK_S3_S3_ACCESS_KEY}",
                "secretKey": "${STORAGE_S3_FALLBACK_S3_S3_SECRET_KEY}",
@@ -30,10 +30,10 @@
                {% if STORAGE_S3_FALLBACK_S3_S3_SSEC is defined %}
                ,"ssec": "${STORAGE_S3_FALLBACK_S3_S3_SSEC}"
                {% endif %}
-             },
+             }
            {% endif %}
            {% if STORAGE_S3_FALLBACK_S3_URI is defined %}
-           "s3fallback": {
+           ,"s3fallback": {
                "uri": "${STORAGE_S3_FALLBACK_S3_URI}",
                "accessKey": "${STORAGE_S3_FALLBACK_S3_ACCESS_KEY}",
                "secretKey": "${STORAGE_S3_FALLBACK_S3_SECRET_KEY}",
