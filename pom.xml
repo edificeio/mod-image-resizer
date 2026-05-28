@@ -13,7 +13,7 @@
     <artifactId>mod-image-resizer</artifactId>
     <version>3.2-SNAPSHOT</version>
     <properties>
-        <entcore-libs.version>6.14-separation-SNAPSHOT</entcore-libs.version>
+        <entCoreLibsVersion>6.14-SNAPSHOT</entCoreLibsVersion>
         <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
@@ -46,7 +46,7 @@
         <dependency>
             <groupId>org.entcore</groupId>
             <artifactId>common</artifactId>
-            <version>${entcore-libs.version}</version>
+            <version>${entCoreLibsVersion}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
