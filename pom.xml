@@ -14,7 +14,7 @@
     <version>3.3.0</version>
     <properties>
         <entCoreLibsVersion>6.15.0</entCoreLibsVersion>
-        <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
+        <jacksonDatabindVersion>2.22.0</jacksonDatabindVersion>
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
         <swiftClientVersion>1.0.0</swiftClientVersion>
