@@ -253,7 +253,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 				final int height = dimensions[1];
 				if (width * height > maxSurfaceForHighQualityScaling) {
 					// The image is too large for high quality scaling, we will use sub-sampling
-					logger.warn("Image surface is too large for high quality scaling: " + width + "x" + height);
+					logger.debug("Image surface is too large for high quality scaling: " + width + "x" + height);
 					final ImageInputStream iis = ImageIO.createImageInputStream(new ByteArrayInputStream(imageBytes));
 					Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
 					ImageReader reader = readers.next();
