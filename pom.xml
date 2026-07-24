@@ -13,7 +13,7 @@
     <artifactId>mod-image-resizer</artifactId>
     <version>3.3-SNAPSHOT</version>
     <properties>
-        <entCoreLibsVersion>6.15-SNAPSHOT</entCoreLibsVersion>
+        <entCoreLibsVersion>6.16-SNAPSHOT</entCoreLibsVersion>
         <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
         <mongoDbVersion>4.8.1</mongoDbVersion>
         <imgscalrVersion>4.2</imgscalrVersion>
