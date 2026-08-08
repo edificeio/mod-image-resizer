@@ -13,10 +13,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Iterator;
 
 @RunWith(VertxUnitRunner.class)
 public class ImageResizerTest {
@@ -131,6 +134,56 @@ public class ImageResizerTest {
       .onFailure(context::fail);
   }
 
+  @Test
+  public void testTiffImageResize(final TestContext context) {
+    final Async async = context.async();
+    final String dest = "/tmp/tiff_out_" + System.currentTimeMillis() + ".tiff";
+    resizer.getVertx().eventBus().<JsonObject>request("image.resizer", new JsonObject()
+        .put("action", "resize")
+        .put("src", getPathToImageFile("img.tiff"))
+        .put("dest", "file://" + dest)
+        .put("width", 100)
+        .put("height", 100))
+      .onSuccess( reply -> {
+        final JsonObject body = reply.body();
+        if(isOk(body)) {
+          final String output = dest + body.getString("output");
+          checkOutputImage(context, output, 100, 100);
+          checkOutputFormat(context, output, "tiff");
+          async.complete();
+        } else {
+          context.fail(body.getString("message"));
+        }
+      })
+      .onFailure(context::fail);
+  }
+
+  @Test
+  public void testLargeTiffImageResize(final TestContext context) {
+    // Source is larger than resizing-src-image-max-width * resizing-src-image-max-height (1440*900),
+    // so getSrcImg takes the sub-sampling branch (ImageReader.setSourceSubsampling) instead of ImageIO.read.
+    final Async async = context.async();
+    final String dest = "/tmp/large_tiff_out_" + System.currentTimeMillis() + ".tiff";
+    resizer.getVertx().eventBus().<JsonObject>request("image.resizer", new JsonObject()
+        .put("action", "resize")
+        .put("src", getPathToImageFile("large.tiff"))
+        .put("dest", "file://" + dest)
+        .put("width", 200)
+        .put("height", 200))
+      .onSuccess( reply -> {
+        final JsonObject body = reply.body();
+        if(isOk(body)) {
+          final String output = dest + body.getString("output");
+          checkOutputImage(context, output, 200, 200);
+          checkOutputFormat(context, output, "tiff");
+          async.complete();
+        } else {
+          context.fail(body.getString("message"));
+        }
+      })
+      .onFailure(context::fail);
+  }
+
   private void checkOutputImage(TestContext context, String src, int width, int height) {
     File outputFile = new File(src);
     if (!outputFile.exists()) {
@@ -149,6 +202,21 @@ public class ImageResizerTest {
       context.fail(e);
     }
 
+  }
+
+  private void checkOutputFormat(TestContext context, String src, String expectedFormat) {
+    try (ImageInputStream iis = ImageIO.createImageInputStream(new File(src))) {
+      final Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+      if (!readers.hasNext()) {
+        context.fail("No image reader found for output: " + src);
+        return;
+      }
+      final String formatName = readers.next().getFormatName();
+      context.assertTrue(expectedFormat.equalsIgnoreCase(formatName),
+          "Expected " + expectedFormat + " output but got " + formatName);
+    } catch (IOException e) {
+      context.fail(e);
+    }
   }
 
   private boolean isOk(JsonObject body) {

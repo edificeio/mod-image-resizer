@@ -29,10 +29,13 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageReaderSpi;
+import com.twelvemonkeys.imageio.plugins.tiff.TIFFImageWriterSpi;
 import org.imgscalr.Scalr;
 import org.vertx.java.busmods.BusModBase;
 
 import javax.imageio.*;
+import javax.imageio.spi.IIORegistry;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
@@ -54,7 +57,7 @@ import static org.imgscalr.Scalr.*;
 
 public class ImageResizer extends BusModBase implements Handler<Message<JsonObject>> {
 	protected static final Logger logger = LoggerFactory.getLogger(ImageResizer.class);
-	public static final String JAI_TIFFIMAGE_WRITER = "com.sun.media.imageioimpl.plugins.tiff.TIFFImageWriter";
+	public static final String TWELVEMONKEYS_TIFFIMAGE_WRITER = "com.twelvemonkeys.imageio.plugins.tiff.TIFFImageWriter";
 	private Map<String, FileAccess> fileAccessProviders = new HashMap<>();
 	private boolean allowImageEnlargement = false;
 	private int maxSurfaceForHighQualityScaling;
@@ -65,6 +68,10 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 	@Override
 	public void start(final Promise<Void> startedResult) {
 		super.start();
+
+		final IIORegistry registry = IIORegistry.getDefaultInstance();
+		registry.registerServiceProvider(new TIFFImageReaderSpi());
+		registry.registerServiceProvider(new TIFFImageWriterSpi());
 
 		JsonObject s3 = config.getJsonObject("s3");
 		if (s3 != null) {
@@ -515,24 +522,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		if (!writers.hasNext()) {
 			writers = ImageIO.getImageWritersByFormatName("jpg");
 		}
-
-		ImageWriter writer = null;
-		if ("png".equalsIgnoreCase(extension)) {
-			while (writers.hasNext()) {
-				ImageWriter candidate = writers.next();
-				final String className = candidate.getClass().getSimpleName();
-				logger.debug(className);
-				if ("CLibPNGImageWriter".equals(className)) {
-					writer = candidate;
-					break;
-				} else if (writer == null) {
-					writer = candidate;
-				}
-			}
-		} else {
-			writer = writers.next();
-		}
-		return writer;
+		return writers.next();
 	}
 
 	private ImageFile compressImage(ImageFile src, BufferedImage srcImg, BufferedImage resized, float quality)
@@ -550,7 +540,7 @@ public class ImageResizer extends BusModBase implements Handler<Message<JsonObje
 		ImageWriteParam param = writer.getDefaultWriteParam();
 		if (quality < 1f && param.canWriteCompressed()) {
 			param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			if (JAI_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
+			if (TWELVEMONKEYS_TIFFIMAGE_WRITER.equals(writer.getClass().getName())) {
 				param.setCompressionType("Deflate");
 			} else if (param.getCompressionType() == null && param.getCompressionTypes().length > 0) {
 				param.setCompressionType(param.getCompressionTypes()[0]);
