@@ -11,7 +11,7 @@
 
     <groupId>fr.wseduc</groupId>
     <artifactId>mod-image-resizer</artifactId>
-    <version>3.3.0-develop-b2school-SNAPSHOT</version>
+    <version>3.3-develop-b2school-SNAPSHOT</version>
     <properties>
         <entCoreLibsVersion>6.16-develop-b2school-SNAPSHOT</entCoreLibsVersion>
         <jacksonDatabindVersion>2.15.2</jacksonDatabindVersion>
